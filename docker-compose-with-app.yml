@@ -60,6 +60,26 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  app:
+    build: ./
+    ports:
+      - "8081:8081"
+    networks:
+      - external_network
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_ADDRESS=${POSTGRES_ADDRESS}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_CONTAINER_INTERNAL_PORT=${POSTGRES_CONTAINER_INTERNAL_PORT}
+      - POSTGRES_CONTAINER_EXPOSED_PORT=${POSTGRES_CONTAINER_EXPOSED_PORT}
+      - PAYMENT_HOST=${PAYMENT_HOST}
+      - PAYMENT_PORT=${PAYMENT_PORT}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
 networks:
   external_network:
     driver: bridge

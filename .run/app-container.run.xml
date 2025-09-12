@@ -1,0 +1,52 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="app-container" type="docker-deploy" factoryName="dockerfile" server-name="Docker">
+    <deployment type="dockerfile">
+      <settings>
+        <option name="buildOnly" value="true" />
+        <option name="containerName" value="" />
+        <option name="envVars">
+          <list>
+            <DockerEnvVarImpl>
+              <option name="name" value="PAYMENT_HOST" />
+              <option name="value" value="127.0.0.1" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="PAYMENT_PORT" />
+              <option name="value" value="1234" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_ADDRESS" />
+              <option name="value" value="127.0.0.1" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_CONTAINER_EXPOSED_PORT" />
+              <option name="value" value="65432" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_CONTAINER_INTERNAL_PORT" />
+              <option name="value" value="5432" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_DB" />
+              <option name="value" value="tiny_es" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_PASSWORD" />
+              <option name="value" value="tiny_es" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_PORT" />
+              <option name="value" value="5432" />
+            </DockerEnvVarImpl>
+            <DockerEnvVarImpl>
+              <option name="name" value="POSTGRES_USER" />
+              <option name="value" value="tiny_es" />
+            </DockerEnvVarImpl>
+          </list>
+        </option>
+        <option name="sourceFilePath" value="Dockerfile" />
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>

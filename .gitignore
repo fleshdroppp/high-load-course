@@ -1,3 +1,6 @@
+grafana/data
+prometheus/data
+
 HELP.md
 target/
 !.mvn/wrapper/maven-wrapper.jar
