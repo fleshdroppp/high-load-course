@@ -34,7 +34,7 @@ class PaymentSubscriber {
             retryConf = RetryConf(1, RetryFailedStrategy.SKIP_EVENT)
         ) {
             `when`(PaymentProcessedEvent::class) { event ->
-                appExecutor.submit {
+                appExecutor.execute {
                     logger.trace(
                         "Payment results. OrderId ${event.orderId}, succeeded: ${event.success}, txId: ${event.transactionId}, reason: ${event.reason}, duration: ${
                             Duration.ofMillis(
