@@ -6,18 +6,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
 import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 class SlidingWindowRateLimiter(
     private val rate: Long,
     private val window: Duration,
 ) : RateLimiter {
-    private val rateLimiterScope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
+    private val rateLimiterScope = CoroutineScope(Executors.newSingleThreadExecutor().decorateWithMdc().asCoroutineDispatcher())
 
     private val sum = AtomicLong(0)
     private val queue = PriorityBlockingQueue<Measure>(10_000)
