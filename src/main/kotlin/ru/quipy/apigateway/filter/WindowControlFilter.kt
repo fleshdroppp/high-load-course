@@ -11,7 +11,7 @@ import ru.quipy.common.utils.logger
 class ParallelRequestsLimiterFilter(
     private val limiter: ParallelRequestsLimiter,
     private val addRequestTimeout: Long
-    ) : OncePerRequestFilter() {
+) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -37,5 +37,4 @@ class ParallelRequestsLimiterFilter(
     companion object {
         private val logger = logger()
     }
-
 }
