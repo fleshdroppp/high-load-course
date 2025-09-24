@@ -1,14 +1,14 @@
 ### Run test locally
-@runHost = 172.23.144.141
+@runHost = localhost
 POST http://{{runHost}}:1234/test/run
 Content-Type: application/json
 
 {
   "serviceName": "test-local",
   "token": "test-local",
-  "ratePerSecond": 11,
-  "testCount": 1200,
-  "processingTimeMillis": 80000,
+  "ratePerSecond": 2,
+  "testCount": 100,
+  "processingTimeMillis": 60000,
   "onPremises": false
 }
 
