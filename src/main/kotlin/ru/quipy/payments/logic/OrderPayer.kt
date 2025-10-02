@@ -1,5 +1,6 @@
 package ru.quipy.payments.logic
 
+import io.github.resilience4j.ratelimiter.RequestNotPermitted
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -7,8 +8,10 @@ import org.springframework.stereotype.Service
 import ru.quipy.common.utils.CallerBlockingRejectedExecutionHandler
 import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
 import ru.quipy.common.utils.NamedThreadFactory
+import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
+import ru.quipy.payments.exception.TooManyParallelPaymentsException
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
@@ -20,6 +23,9 @@ class OrderPayer {
     companion object {
         val logger: Logger = LoggerFactory.getLogger(OrderPayer::class.java)
     }
+
+    @Autowired
+    private lateinit var limiter: ParallelRequestsLimiter
 
     @Autowired
     private lateinit var paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>
@@ -39,18 +45,27 @@ class OrderPayer {
 
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-        paymentExecutor.execute {
-            val createdEvent = paymentESService.create {
-                it.create(
-                    paymentId,
-                    orderId,
-                    amount
-                )
-            }
-            logger.trace("Payment ${createdEvent.paymentId} for order $orderId created.")
 
-            paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+        if (limiter.tryToAddRequest(60)) {
+            try {
+                paymentExecutor.execute {
+                    val createdEvent = paymentESService.create {
+                        it.create(
+                            paymentId,
+                            orderId,
+                            amount
+                        )
+                    }
+                    logger.trace("Payment ${createdEvent.paymentId} for order $orderId created.")
+
+                    paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+                }
+                return createdAt
+            } finally {
+                limiter.releaseRequest()
+            }
         }
-        return createdAt
+        logger.warn("Dropped order with id = $orderId! Timeout for acquiring semaphore reached!")
+        throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
     }
 }
