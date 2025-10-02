@@ -3,8 +3,8 @@ package ru.quipy.payments.logic
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.github.resilience4j.ratelimiter.RateLimiter
-import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -44,15 +44,15 @@ class PaymentExternalSystemAdapterImpl(
 
     private val client = OkHttpClient.Builder().build()
 
-    private val parallelLimiterSuccessCounter by lazy {
-        Counter.builder("parallel_requests_limiter_total")
+    private val semaphoreWaitSuccessTimer by lazy {
+        Timer.builder("semaphore_wait_duration")
             .tag("outcome", "SUCCESS")
             .tag("service", serviceName)
             .register(meterRegistry)
     }
 
-    private val parallelLimiterFailCounter by lazy {
-        Counter.builder("parallel_requests_limiter_total")
+    private val semaphoreWaitFailTimer by lazy {
+        Timer.builder("semaphore_wait_duration")
             .tag("outcome", "FAIL")
             .tag("service", serviceName)
             .register(meterRegistry)
@@ -69,13 +69,16 @@ class PaymentExternalSystemAdapterImpl(
             it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
         }
 
-        if (!parallelRequestsLimiter.tryToAddRequest(1)) {
+        val waitStartTime = System.nanoTime()
+        if (!parallelRequestsLimiter.tryToAddRequest(60)) {
+            val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
+            semaphoreWaitFailTimer.record(waitDuration)
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
-            parallelLimiterFailCounter.increment()
             throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
         }
-
-        parallelLimiterSuccessCounter.increment()
+        
+        val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
+        semaphoreWaitSuccessTimer.record(waitDuration)
         
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
