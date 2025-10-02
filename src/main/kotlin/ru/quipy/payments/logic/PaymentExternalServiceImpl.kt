@@ -76,10 +76,10 @@ class PaymentExternalSystemAdapterImpl(
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
             throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
         }
-        
+
         val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
         semaphoreWaitSuccessTimer.record(waitDuration)
-        
+
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
@@ -125,6 +125,7 @@ class PaymentExternalSystemAdapterImpl(
             }
         } finally {
             parallelRequestsLimiter.releaseRequest()
+            logger.info("after awaitingQueueSize = ${parallelRequestsLimiter.awaitingQueueSize()}")
         }
     }
 

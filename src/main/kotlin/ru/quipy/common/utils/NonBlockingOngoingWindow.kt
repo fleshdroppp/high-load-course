@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class OngoingWindow(maxWinSize: Int) : ParallelRequestsLimiter {
-    private val window = Semaphore(maxWinSize)
+    private val window = Semaphore(maxWinSize, true)
 
     override fun tryToAddRequest(timeout: Long) : Boolean {
         return window.tryAcquire(timeout, TimeUnit.SECONDS)
