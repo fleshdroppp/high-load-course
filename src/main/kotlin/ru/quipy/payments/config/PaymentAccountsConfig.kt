@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.github.resilience4j.ratelimiter.RateLimiter
 import io.github.resilience4j.ratelimiter.RateLimiterConfig
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -53,7 +54,8 @@ class PaymentAccountsConfig {
     fun accountAdapters(
         paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
         parallelRequestsLimiter: ParallelRequestsLimiter,
-        outboundPaymentRateLimiter: RateLimiter
+        outboundPaymentRateLimiter: RateLimiter,
+        meterRegistry: MeterRegistry
     ): List<PaymentExternalSystemAdapter> {
         val request = HttpRequest.newBuilder()
             .uri(URI("http://${paymentProviderHostPort}/external/accounts?serviceName=$serviceName&token=$token"))
@@ -77,7 +79,8 @@ class PaymentAccountsConfig {
                     parallelRequestsLimiter,
                     outboundPaymentRateLimiter,
                     paymentProviderHostPort,
-                    token
+                    token,
+                    meterRegistry
                 )
             }
     }

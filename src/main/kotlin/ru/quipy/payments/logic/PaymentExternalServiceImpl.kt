@@ -3,6 +3,8 @@ package ru.quipy.payments.logic
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.github.resilience4j.ratelimiter.RateLimiter
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -24,6 +26,7 @@ class PaymentExternalSystemAdapterImpl(
     private val outboundPaymentRateLimiter: RateLimiter,
     private val paymentProviderHostPort: String,
     private val token: String,
+    private val meterRegistry: MeterRegistry
 ) : PaymentExternalSystemAdapter {
 
     companion object {
@@ -41,6 +44,20 @@ class PaymentExternalSystemAdapterImpl(
 
     private val client = OkHttpClient.Builder().build()
 
+    private val parallelLimiterSuccessCounter by lazy {
+        Counter.builder("parallel_requests_limiter_total")
+            .tag("outcome", "SUCCESS")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
+    private val parallelLimiterFailCounter by lazy {
+        Counter.builder("parallel_requests_limiter_total")
+            .tag("outcome", "FAIL")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
         logger.warn("[$accountName] Submitting payment request for payment $paymentId")
 
@@ -52,11 +69,14 @@ class PaymentExternalSystemAdapterImpl(
             it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
         }
 
-        if (!parallelRequestsLimiter.tryToAddRequest(60)) {
+        if (!parallelRequestsLimiter.tryToAddRequest(1)) {
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
+            parallelLimiterFailCounter.increment()
             throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
         }
 
+        parallelLimiterSuccessCounter.increment()
+        
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
