@@ -2,12 +2,15 @@ package ru.quipy.payments.logic
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.github.resilience4j.ratelimiter.RateLimiter
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.slf4j.LoggerFactory
+import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
+import ru.quipy.payments.exception.TooManyParallelPaymentsException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.*
@@ -17,6 +20,8 @@ import java.util.*
 class PaymentExternalSystemAdapterImpl(
     private val properties: PaymentAccountProperties,
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+    private val parallelRequestsLimiter: ParallelRequestsLimiter,
+    private val outboundPaymentRateLimiter: RateLimiter,
     private val paymentProviderHostPort: String,
     private val token: String,
 ) : PaymentExternalSystemAdapter {
@@ -47,6 +52,11 @@ class PaymentExternalSystemAdapterImpl(
             it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
         }
 
+        if (!parallelRequestsLimiter.tryToAddRequest(60)) {
+            logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
+            throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
+        }
+
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
@@ -54,6 +64,8 @@ class PaymentExternalSystemAdapterImpl(
                 url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
                 post(emptyBody)
             }.build()
+
+            RateLimiter.waitForPermission(outboundPaymentRateLimiter)
 
             client.newCall(request).execute().use { response ->
                 val body = try {
@@ -88,6 +100,8 @@ class PaymentExternalSystemAdapterImpl(
                     }
                 }
             }
+        } finally {
+            parallelRequestsLimiter.releaseRequest()
         }
     }
 

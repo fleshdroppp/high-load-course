@@ -3,9 +3,12 @@ package ru.quipy.payments.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.github.resilience4j.ratelimiter.RateLimiter
+import io.github.resilience4j.ratelimiter.RateLimiterConfig
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
 import ru.quipy.payments.logic.*
@@ -13,6 +16,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 import java.util.*
 
 
@@ -36,7 +40,21 @@ class PaymentAccountsConfig {
     lateinit var allowedAccounts: List<String>
 
     @Bean
-    fun accountAdapters(paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>): List<PaymentExternalSystemAdapter> {
+    fun outboundPaymentRateLimiter(): RateLimiter =
+        RateLimiter.of(
+            "payment-system-outbound", RateLimiterConfig.custom()
+                .limitForPeriod(3)
+                .limitRefreshPeriod(Duration.ofSeconds(1))
+                .timeoutDuration(Duration.ofSeconds(15))
+                .build()
+        )
+
+    @Bean
+    fun accountAdapters(
+        paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+        parallelRequestsLimiter: ParallelRequestsLimiter,
+        outboundPaymentRateLimiter: RateLimiter
+    ): List<PaymentExternalSystemAdapter> {
         val request = HttpRequest.newBuilder()
             .uri(URI("http://${paymentProviderHostPort}/external/accounts?serviceName=$serviceName&token=$token"))
             .GET()
@@ -56,6 +74,8 @@ class PaymentAccountsConfig {
                 PaymentExternalSystemAdapterImpl(
                     it,
                     paymentService,
+                    parallelRequestsLimiter,
+                    outboundPaymentRateLimiter,
                     paymentProviderHostPort,
                     token
                 )
