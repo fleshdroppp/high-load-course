@@ -3,6 +3,7 @@ package ru.quipy.payments.logic
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.github.resilience4j.ratelimiter.RateLimiter
+import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import okhttp3.OkHttpClient
@@ -58,6 +59,20 @@ class PaymentExternalSystemAdapterImpl(
             .register(meterRegistry)
     }
 
+    private val semaphoreWaitCounterWait by lazy {
+        Counter.builder("semaphore_wait_counter")
+            .tag("outcome", "WAIT")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
+    private val semaphoreWaitCounterFinish by lazy {
+        Counter.builder("semaphore_wait_counter")
+            .tag("outcome", "FINISH")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
         logger.warn("[$accountName] Submitting payment request for payment $paymentId")
 
@@ -70,15 +85,18 @@ class PaymentExternalSystemAdapterImpl(
         }
 
         val waitStartTime = System.nanoTime()
+        semaphoreWaitCounterWait.increment()
         if (!parallelRequestsLimiter.tryToAddRequest(60)) {
             val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
             semaphoreWaitFailTimer.record(waitDuration)
+            semaphoreWaitCounterFinish.increment()
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
             throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
         }
 
         val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
         semaphoreWaitSuccessTimer.record(waitDuration)
+        semaphoreWaitCounterFinish.increment()
 
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
