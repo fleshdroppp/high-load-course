@@ -6,12 +6,18 @@ import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import ru.quipy.payments.exception.TooManyParallelPaymentsException
 
 @Component
 @ControllerAdvice
 class AppExceptionHandler {
     @ExceptionHandler(exception = [RequestNotPermitted::class])
     fun handleRequestNotPermitted(): ResponseEntity<Unit> {
+        return ResponseEntity(HttpStatus.TOO_MANY_REQUESTS)
+    }
+
+    @ExceptionHandler(TooManyParallelPaymentsException::class)
+    fun handleTooManyParallelRequests(): ResponseEntity<Unit> {
         return ResponseEntity(HttpStatus.TOO_MANY_REQUESTS)
     }
 }

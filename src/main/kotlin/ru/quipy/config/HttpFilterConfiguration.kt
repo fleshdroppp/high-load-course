@@ -6,6 +6,7 @@ import org.springframework.core.annotation.Order
 import ru.quipy.apigateway.filter.MdcFilter
 import ru.quipy.apigateway.filter.RequestLoggingFilter
 
+
 @Configuration
 class HttpFilterConfiguration {
     @Bean
@@ -15,4 +16,5 @@ class HttpFilterConfiguration {
     @Bean
     @Order(1)
     fun requestLoggingFilter(): RequestLoggingFilter = RequestLoggingFilter()
+
 }
