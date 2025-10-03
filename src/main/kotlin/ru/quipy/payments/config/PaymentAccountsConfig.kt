@@ -12,7 +12,10 @@ import org.springframework.context.annotation.Configuration
 import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
-import ru.quipy.payments.logic.*
+import ru.quipy.payments.logic.PaymentAccountProperties
+import ru.quipy.payments.logic.PaymentAggregateState
+import ru.quipy.payments.logic.PaymentExternalSystemAdapter
+import ru.quipy.payments.logic.PaymentExternalSystemAdapterImpl
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -46,7 +49,7 @@ class PaymentAccountsConfig {
             "payment-system-outbound", RateLimiterConfig.custom()
                 .limitForPeriod(3)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
-                .timeoutDuration(Duration.ofSeconds(5))
+                .timeoutDuration(Duration.ofSeconds(15))
                 .build()
         )
 

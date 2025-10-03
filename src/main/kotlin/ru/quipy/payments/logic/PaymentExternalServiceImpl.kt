@@ -43,7 +43,7 @@ class PaymentExternalSystemAdapterImpl(
     private val rateLimitPerSec = properties.rateLimitPerSec
     private val parallelRequests = properties.parallelRequests
 
-    private val client = OkHttpClient.Builder().build()
+    private val client = OkHttpClient.Builder().callTimeout(Duration.ofSeconds(15)).build()
 
     private val semaphoreWaitSuccessTimer by lazy {
         Timer.builder("semaphore_wait_duration")
@@ -86,11 +86,14 @@ class PaymentExternalSystemAdapterImpl(
 
         val waitStartTime = System.nanoTime()
         semaphoreWaitCounterWait.increment()
-        if (!parallelRequestsLimiter.tryToAddRequest(60)) {
+        if (!parallelRequestsLimiter.tryToAddRequest(59)) {
             val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
             semaphoreWaitFailTimer.record(waitDuration)
             semaphoreWaitCounterFinish.increment()
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
+            paymentESService.update(paymentId) {
+                it.logProcessing(success = false, now(), transactionId, "Timeout for acquiring semaphore reached!")
+            }
             throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
         }
 
@@ -113,7 +116,7 @@ class PaymentExternalSystemAdapterImpl(
                     mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
                 } catch (e: Exception) {
                     logger.error("[$accountName] [ERROR] Payment processed for txId: $transactionId, payment: $paymentId, result code: ${response.code}, reason: ${response.body?.string()}")
-                    ExternalSysResponse(transactionId.toString(), paymentId.toString(),false, e.message)
+                    ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
                 }
 
                 logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, message: ${body.message}")
