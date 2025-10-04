@@ -9,8 +9,8 @@ import io.micrometer.core.instrument.Timer
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import org.slf4j.LoggerFactory
 import ru.quipy.common.utils.ParallelRequestsLimiter
+import ru.quipy.common.utils.logger
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
 import ru.quipy.payments.exception.TooManyParallelPaymentsException
@@ -27,14 +27,14 @@ class PaymentExternalSystemAdapterImpl(
     private val outboundPaymentRateLimiter: RateLimiter,
     private val paymentProviderHostPort: String,
     private val token: String,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
 ) : PaymentExternalSystemAdapter {
 
     companion object {
-        val logger = LoggerFactory.getLogger(PaymentExternalSystemAdapter::class.java)
+        private val logger = logger()
 
-        val emptyBody = RequestBody.create(null, ByteArray(0))
-        val mapper = ObjectMapper().registerKotlinModule()
+        private val emptyBody = RequestBody.create(null, ByteArray(0))
+        private val mapper = ObjectMapper().registerKotlinModule()
     }
 
     private val serviceName = properties.serviceName
@@ -43,7 +43,9 @@ class PaymentExternalSystemAdapterImpl(
     private val rateLimitPerSec = properties.rateLimitPerSec
     private val parallelRequests = properties.parallelRequests
 
-    private val client = OkHttpClient.Builder().callTimeout(Duration.ofSeconds(15)).build()
+    private val client = OkHttpClient.Builder()
+        .callTimeout(requestAverageProcessingTime.multipliedBy(2))
+        .build()
 
     private val semaphoreWaitSuccessTimer by lazy {
         Timer.builder("semaphore_wait_duration")
@@ -86,7 +88,7 @@ class PaymentExternalSystemAdapterImpl(
 
         val waitStartTime = System.nanoTime()
         semaphoreWaitCounterWait.increment()
-        if (!parallelRequestsLimiter.tryToAddRequest(59)) {
+        if (!parallelRequestsLimiter.tryToAddRequest(10)) {
             val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
             semaphoreWaitFailTimer.record(waitDuration)
             semaphoreWaitCounterFinish.increment()
