@@ -15,9 +15,12 @@ class MdcExecutorDecorator(
         }
 
         decorated.execute {
-            MDC.setContextMap(parentThreadMdc)
-            command.run()
-            MDC.clear()
+            try {
+                MDC.setContextMap(parentThreadMdc)
+                command.run()
+            } finally {
+                MDC.clear()
+            }
         }
     }
 

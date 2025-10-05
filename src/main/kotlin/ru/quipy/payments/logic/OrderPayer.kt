@@ -1,13 +1,12 @@
 package ru.quipy.payments.logic
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
+import io.github.resilience4j.ratelimiter.RateLimiter
 import org.springframework.stereotype.Service
 import ru.quipy.common.utils.CallerBlockingRejectedExecutionHandler
 import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
 import ru.quipy.common.utils.NamedThreadFactory
-import ru.quipy.common.utils.ParallelRequestsLimiter
+import ru.quipy.common.utils.exhausting
+import ru.quipy.common.utils.logger
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
 import java.util.*
@@ -16,30 +15,20 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 @Service
-class OrderPayer {
-
-    companion object {
-        val logger: Logger = LoggerFactory.getLogger(OrderPayer::class.java)
-    }
-
-    @Autowired
-    private lateinit var limiter: ParallelRequestsLimiter
-
-    @Autowired
-    private lateinit var paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>
-
-    @Autowired
-    private lateinit var paymentService: PaymentService
-
+class OrderPayer(
+    private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+    private val paymentService: PaymentService,
+    outboundPaymentRateLimiter: RateLimiter,
+) {
     private val paymentExecutor = ThreadPoolExecutor(
-        16,
-        16,
-        0L,
-        TimeUnit.MILLISECONDS,
-        LinkedBlockingQueue(8_000),
+        150,
+        150,
+        60L,
+        TimeUnit.SECONDS,
+        LinkedBlockingQueue(10),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
-    ).decorateWithMdc()
+    ).exhausting(outboundPaymentRateLimiter).decorateWithMdc()
 
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
@@ -51,9 +40,13 @@ class OrderPayer {
                     amount
                 )
             }
-            logger.trace("Payment ${createdEvent.paymentId} for order $orderId created.")
+            logger.trace("Payment {} for order {} created.", createdEvent.paymentId, orderId)
             paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
         }
         return createdAt
+    }
+
+    companion object {
+        private val logger = logger()
     }
 }
