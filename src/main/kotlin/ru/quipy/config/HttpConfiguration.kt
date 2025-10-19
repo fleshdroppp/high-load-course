@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import ru.quipy.common.utils.FixedWindowRateLimiter
 
 import ru.quipy.common.utils.OngoingWindow
 import ru.quipy.common.utils.ParallelRequestsLimiter
@@ -26,6 +27,11 @@ class HttpConfiguration {
     @Bean
     fun parallelRequestsLimiter(): ParallelRequestsLimiter {
         return OngoingWindow(parallelRequestsLimiterMaxSize)
+    }
+
+    @Bean
+    fun rateLimiter(): RateLimiter {
+        return SlidingWindowRateLimiter(11, Duration.ofSeconds(1))
     }
 
 }
