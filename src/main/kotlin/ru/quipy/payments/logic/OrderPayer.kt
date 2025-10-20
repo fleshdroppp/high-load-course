@@ -21,14 +21,14 @@ class OrderPayer(
     outboundPaymentRateLimiter: RateLimiter,
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
-        150,
-        150,
-        60L,
+        50,
+        50,
+        0L,
         TimeUnit.SECONDS,
-        LinkedBlockingQueue(10),
+        LinkedBlockingQueue(8000),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
-    ).exhausting(outboundPaymentRateLimiter).decorateWithMdc()
+    ).decorateWithMdc()
 
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
