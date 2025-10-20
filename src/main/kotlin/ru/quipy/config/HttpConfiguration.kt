@@ -26,9 +26,9 @@ class HttpConfiguration {
 
     @Bean
     fun rateLimiter(): LeakyBucketRateLimiter {
-        // bucketSize perfectly should be rate * processingTimeMillis = 11 * 13 = 143,
+        // bucketSize perfectly should be rate * processingTimeMillis = 11 * 26 = 286,
         // but in fact bucketSize value is a bit lower so no requests will fail with timeout
-        return LeakyBucketRateLimiter(11, Duration.ofSeconds(1), 125)
+        return LeakyBucketRateLimiter(11, Duration.ofSeconds(1), 275)
     }
 
 }
