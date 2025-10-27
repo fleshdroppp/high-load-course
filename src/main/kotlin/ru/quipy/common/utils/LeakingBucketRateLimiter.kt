@@ -32,7 +32,7 @@ class LeakyBucketRateLimiter(
         val offered = queue.offer(deferred)
         if (!offered) {
             logger.info("Rejected request! Queue size: ${queue.size}")
-            throw ResourceExhaustedRetryableException(1000)
+            throw ResourceExhaustedRetryableException(1)
         }
         deferred.await()
         logger.info("Completed! Queue size: ${queue.size}")

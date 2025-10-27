@@ -28,7 +28,7 @@ class HttpConfiguration {
     fun rateLimiter(): LeakyBucketRateLimiter {
         // bucketSize perfectly should be rate * processingTimeMillis = 11 * 26 = 286,
         // but in fact bucketSize value is a bit lower so no requests will fail with timeout
-        return LeakyBucketRateLimiter(11, Duration.ofSeconds(1), 275)
+        return LeakyBucketRateLimiter(7, Duration.ofSeconds(1), 210)
     }
 
 }
