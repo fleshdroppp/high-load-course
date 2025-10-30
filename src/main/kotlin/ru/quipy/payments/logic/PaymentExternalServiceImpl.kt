@@ -17,6 +17,7 @@ import ru.quipy.payments.exception.TooManyParallelPaymentsException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 
 // Advice: always treat time as a Duration
@@ -44,7 +45,7 @@ class PaymentExternalSystemAdapterImpl(
     private val parallelRequests = properties.parallelRequests
 
     private val client = OkHttpClient.Builder()
-        .callTimeout(requestAverageProcessingTime.multipliedBy(2))
+        .callTimeout(requestAverageProcessingTime.multipliedBy(3))
         .build()
 
     private val semaphoreWaitSuccessTimer by lazy {
@@ -76,7 +77,7 @@ class PaymentExternalSystemAdapterImpl(
     }
 
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
-        logger.warn("[$accountName] Submitting payment request for payment $paymentId")
+        logger.info("[$accountName] Submitting payment request for payment $paymentId, time left: ${deadline - now()}")
 
         val transactionId = UUID.randomUUID()
 
@@ -105,6 +106,10 @@ class PaymentExternalSystemAdapterImpl(
 
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
+        if (now() + requestAverageProcessingTime.toMillis() > deadline) {
+            throw TooManyParallelPaymentsException("Not enough time for payment $paymentId!")
+        }
+
         try {
             val request = Request.Builder().run {
                 url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
@@ -121,7 +126,7 @@ class PaymentExternalSystemAdapterImpl(
                     ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
                 }
 
-                logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, message: ${body.message}")
+                logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, time left: ${deadline - now()}, message: ${body.message}")
 
                 // Здесь мы обновляем состояние оплаты в зависимости от результата в базе данных оплат.
                 // Это требуется сделать ВО ВСЕХ ИСХОДАХ (успешная оплата / неуспешная / ошибочная ситуация)
@@ -148,7 +153,7 @@ class PaymentExternalSystemAdapterImpl(
             }
         } finally {
             parallelRequestsLimiter.releaseRequest()
-            logger.info("after awaitingQueueSize = ${parallelRequestsLimiter.awaitingQueueSize()}")
+            logger.info("Payment: $paymentId finished and released lock, time left: ${deadline - now()}")
         }
     }
 

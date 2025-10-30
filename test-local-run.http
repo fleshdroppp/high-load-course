@@ -9,7 +9,7 @@ Content-Type: application/json
   "token": "test-local",
   "ratePerSecond": 7,
   "testCount": 800,
-  "processingTimeMillis": 3500,
+  "processingTimeMillis": 7000,
   "onPremises": false
 }
 
