@@ -17,7 +17,6 @@ import ru.quipy.payments.exception.TooManyParallelPaymentsException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.*
-import kotlin.time.Duration.Companion.milliseconds
 
 
 // Advice: always treat time as a Duration
@@ -94,9 +93,6 @@ class PaymentExternalSystemAdapterImpl(
             semaphoreWaitFailTimer.record(waitDuration)
             semaphoreWaitCounterFinish.increment()
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
-            paymentESService.update(paymentId) {
-                it.logProcessing(success = false, now(), transactionId, "Timeout for acquiring semaphore reached!")
-            }
             throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
         }
 
@@ -106,32 +102,38 @@ class PaymentExternalSystemAdapterImpl(
 
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
-        if (now() + requestAverageProcessingTime.toMillis() > deadline) {
-            throw TooManyParallelPaymentsException("Not enough time for payment $paymentId!")
-        }
-
+        val retriesCount = 3
         try {
             val request = Request.Builder().run {
                 url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
                 post(emptyBody)
             }.build()
 
-//            outboundPaymentRateLimiter.acquirePermission()
-
-            client.newCall(request).execute().use { response ->
-                val body = try {
-                    mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
-                } catch (e: Exception) {
-                    logger.error("[$accountName] [ERROR] Payment processed for txId: $transactionId, payment: $paymentId, result code: ${response.code}, reason: ${response.body?.string()}")
-                    ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
+            for (attempt in 0 until retriesCount) {
+                if (now() + requestAverageProcessingTime.toMillis() > deadline) {
+                    throw Exception("Not enough time for payment $paymentId!")
                 }
 
-                logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, time left: ${deadline - now()}, message: ${body.message}")
+                var successfulRequest = false
+                client.newCall(request).execute().use { response ->
+                    val body = try {
+                        mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
+                    } catch (e: Exception) {
+                        logger.error("[$accountName] [ERROR] Payment processed for txId: $transactionId, payment: $paymentId, result code: ${response.code}, reason: ${response.body?.string()}")
+                        ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
+                    }
+                    successfulRequest = body.result
 
-                // Здесь мы обновляем состояние оплаты в зависимости от результата в базе данных оплат.
-                // Это требуется сделать ВО ВСЕХ ИСХОДАХ (успешная оплата / неуспешная / ошибочная ситуация)
-                paymentESService.update(paymentId) {
-                    it.logProcessing(body.result, now(), transactionId, reason = body.message)
+                    logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, time left: ${deadline - now()}, attempt: $attempt, message: ${body.message}")
+
+                    // Здесь мы обновляем состояние оплаты в зависимости от результата в базе данных оплат.
+                    // Это требуется сделать ВО ВСЕХ ИСХОДАХ (успешная оплата / неуспешная / ошибочная ситуация)
+                    paymentESService.update(paymentId) {
+                        it.logProcessing(body.result, now(), transactionId, reason = body.message)
+                    }
+                }
+                if (successfulRequest) {
+                    break
                 }
             }
         } catch (e: Exception) {
