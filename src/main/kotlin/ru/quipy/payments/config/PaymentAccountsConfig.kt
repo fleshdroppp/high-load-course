@@ -6,12 +6,14 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.github.resilience4j.ratelimiter.RateLimiter
 import io.github.resilience4j.ratelimiter.RateLimiterConfig
 import io.micrometer.core.instrument.MeterRegistry
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
+import ru.quipy.payments.client.ExternalPaymentClient
 import ru.quipy.payments.logic.PaymentAccountProperties
 import ru.quipy.payments.logic.PaymentAggregateState
 import ru.quipy.payments.logic.PaymentExternalSystemAdapter
@@ -20,6 +22,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Clock
 import java.time.Duration
 import java.util.*
 
@@ -32,16 +35,19 @@ class PaymentAccountsConfig {
     }
 
     @Value("\${payment.hostPort}")
-    lateinit var paymentProviderHostPort: String
+    private lateinit var paymentProviderHostPort: String
 
     @Value("\${payment.service-name}")
-    lateinit var serviceName: String
+    private lateinit var serviceName: String
 
     @Value("\${payment.token}")
-    lateinit var token: String
+    private lateinit var token: String
 
     @Value("#{'\${payment.accounts}'.split(',')}")
-    lateinit var allowedAccounts: List<String>
+    private lateinit var allowedAccounts: List<String>
+
+    @Autowired
+    private lateinit var clock: Clock
 
     @Bean
     fun outboundPaymentRateLimiter(): RateLimiter =
@@ -75,14 +81,20 @@ class PaymentAccountsConfig {
             .map { it.copy(enabled = true) }
             .onEach(::println)
             .map {
+                val client = ExternalPaymentClient(
+                    it,
+                    paymentProviderHostPort,
+                    token,
+                    retryAmount = 3,
+                    clock,
+                )
+
                 PaymentExternalSystemAdapterImpl(
                     it,
                     paymentService,
                     parallelRequestsLimiter,
-                    outboundPaymentRateLimiter,
-                    paymentProviderHostPort,
-                    token,
-                    meterRegistry
+                    meterRegistry,
+                    client,
                 )
             }
     }

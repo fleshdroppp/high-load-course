@@ -14,7 +14,7 @@ class MdcFilter : OncePerRequestFilter() {
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-        MDC.put(MdcKeys.REQUEST_ID, generateRequestId())
+        MDC.put(MdcKeys.REQUEST_ID.inner, generateRequestId())
         filterChain.doFilter(request, response)
     }
 
