@@ -7,3 +7,9 @@ providers:
     options:
       path:
         /etc/grafana/provisioning/dashboards/ServicesStatistic.json
+  - name: SB3
+    updateIntervalSeconds: 5
+    type: file
+    options:
+      path:
+        /etc/grafana/provisioning/dashboards/SpringBoot.json

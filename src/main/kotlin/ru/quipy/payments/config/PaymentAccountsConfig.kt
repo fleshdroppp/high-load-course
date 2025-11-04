@@ -47,9 +47,9 @@ class PaymentAccountsConfig {
     fun outboundPaymentRateLimiter(): RateLimiter =
         RateLimiter.of(
             "payment-system-outbound", RateLimiterConfig.custom()
-                .limitForPeriod(3)
+                .limitForPeriod(50)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
-                .timeoutDuration(Duration.ofSeconds(15))
+                .timeoutDuration(Duration.ofMillis(300))
                 .build()
         )
 
@@ -71,8 +71,7 @@ class PaymentAccountsConfig {
         return mapper.readValue<List<PaymentAccountProperties>>(
             resp.body(),
             mapper.typeFactory.constructCollectionType(List::class.java, PaymentAccountProperties::class.java)
-        )
-            .filter { it.accountName in allowedAccounts }
+        ).filter { it.accountName in allowedAccounts }
             .map { it.copy(enabled = true) }
             .onEach(::println)
             .map {

@@ -44,7 +44,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -135,7 +135,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(rate(payment_finished_total{outcome=\"SUCCESS\"}[20s]))",
@@ -152,7 +152,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -214,7 +214,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -307,7 +307,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -400,7 +400,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -506,7 +506,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -589,7 +589,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(rate(payment_finished_total{service=~\"$service\"}[30s])) by (service, outcome, failReason)",
@@ -606,7 +606,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -688,7 +688,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -705,7 +705,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -788,7 +788,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(payments_amount_total{service=~\"$service\"}[1m])) by (service) / (sum(increase(payments_amount_total{service=~\"$service\"}[1m])) by (service) + sum(increase(external_amount_total{service=~\"$service\"}[1m])) by (service))",
@@ -801,7 +801,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(external_amount_total{service=~\"$service\"}[1m])) by (service) / (sum(increase(payments_amount_total{service=~\"$service\"}[1m])) by (service) + sum(increase(external_amount_total{service=~\"$service\"}[1m])) by (service))",
@@ -818,7 +818,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -872,7 +872,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(payments_amount_total{service=~\"$service\"}[$__range])) by (service) / (sum(increase(payments_amount_total{service=~\"$service\"}[$__range])) by (service) + sum(increase(external_amount_total{service=~\"$service\"}[$__range])) by (service))",
@@ -885,7 +885,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(external_amount_total{service=~\"$service\"}[$__range])) by (service) / (sum(increase(payments_amount_total{service=~\"$service\"}[$__range])) by (service) + sum(increase(external_amount_total{service=~\"$service\"}[$__range])) by (service))",
@@ -902,7 +902,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -987,7 +987,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(payments_amount_total{service=~\"$service\"}[1m])) by (service)",
@@ -1000,7 +1000,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(external_amount_total{service=~\"$service\"}[1m])) by (service, accountName) ",
@@ -1017,7 +1017,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1071,7 +1071,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(payments_amount_total{service=~\"$service\"}[$__range])) by (service)",
@@ -1084,7 +1084,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "sum(increase(external_amount_total{service=~\"$service\"}[$__range])) by (service, accountName) ",
@@ -1114,7 +1114,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1194,7 +1194,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1211,7 +1211,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1331,7 +1331,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1348,7 +1348,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1431,7 +1431,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1461,7 +1461,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1579,7 +1579,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1596,7 +1596,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1715,7 +1715,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1732,7 +1732,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "description": "",
       "fieldConfig": {
@@ -1814,7 +1814,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1827,7 +1827,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "exemplar": true,
           "expr": "",
@@ -1856,7 +1856,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -1975,7 +1975,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1993,7 +1993,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -2114,7 +2114,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -2132,7 +2132,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -2255,7 +2255,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -2273,7 +2273,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -2396,7 +2396,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -2414,7 +2414,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheusdatasource"
       },
       "fieldConfig": {
         "defaults": {
@@ -2559,7 +2559,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "editorMode": "code",
           "expr": "rate(http_request_latent_sum{service=~\"$service\"}[15s]) / rate(http_request_latent_count{service=~\"$service\"}[15s])",
@@ -2586,7 +2586,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -2666,7 +2666,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -2683,7 +2683,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -2763,7 +2763,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -2780,7 +2780,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -2860,7 +2860,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -2891,7 +2891,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -2968,7 +2968,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum ((sum by (job, area) (jvm_memory_used_bytes{area=\"heap\"}) / sum by (job, area) (jvm_memory_max_bytes{area=\"heap\"})) * 100) by (job)",
@@ -2984,7 +2984,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3061,7 +3061,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jvm_threads_live_threads{})",
@@ -3077,7 +3077,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3161,7 +3161,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (system_cpu_usage{service=~\"$service\"})",
@@ -3174,7 +3174,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (process_cpu_usage{service=~\"$service\"})",
@@ -3191,7 +3191,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3268,7 +3268,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum(rate(jvm_gc_pause_seconds_sum{}[5m])) by (job)",
@@ -3284,7 +3284,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3361,7 +3361,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (process_files_open_files{})",
@@ -3391,7 +3391,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3474,7 +3474,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jetty_threads_config_max{})",
@@ -3492,7 +3492,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3575,7 +3575,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jetty_threads_config_min{service=~\"$service\"})",
@@ -3593,7 +3593,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3677,7 +3677,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jetty_threads_busy{})",
@@ -3691,7 +3691,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jetty_threads_idle{})",
@@ -3703,7 +3703,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jetty_threads_current{})",
@@ -3715,7 +3715,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job) (jetty_threads_jobs{})",
@@ -3731,7 +3731,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3813,7 +3813,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "irate(http_server_requests_seconds_count{service=~\"$service\", uri!~\".*actuator.*\"}[5m])",
@@ -3830,7 +3830,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheusdatasource"
           },
           "fieldConfig": {
             "defaults": {
@@ -3914,7 +3914,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
+                "uid": "prometheusdatasource"
               },
               "editorMode": "code",
               "expr": "sum by (job, method, status, uri) (irate(http_server_requests_seconds_sum{service=~\"$service\", exception=\"None\", uri!~\".*actuator.*\"}[5m]) / irate(http_server_requests_seconds_count{service=~\"$service\", exception=\"None\", uri!~\".*actuator.*\"}[5m]))",
@@ -3947,7 +3947,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
+          "uid": "prometheusdatasource"
         },
         "definition": "label_values(service)",
         "includeAll": true,
