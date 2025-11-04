@@ -1,20 +1,21 @@
 package ru.quipy.common.utils
 
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class OngoingWindow(
-    maxWinSize: Int
-) {
+class OngoingWindow(maxWinSize: Int) : ParallelRequestsLimiter {
     private val window = Semaphore(maxWinSize)
 
-    fun acquire() {
-        window.acquire()
+    override fun tryToAddRequest(timeout: Long) : Boolean {
+        return window.tryAcquire(timeout, TimeUnit.SECONDS)
     }
 
-    fun release() = window.release()
+    override fun releaseRequest() = window.release()
 
-    fun awaitingQueueSize() = window.queueLength
+    override fun awaitingQueueSize() = window.queueLength
+
+    fun acquire() = window.acquire()
 }
 
 class NonBlockingOngoingWindow(
