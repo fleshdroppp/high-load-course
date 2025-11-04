@@ -21,9 +21,9 @@ class OrderPayer(
     outboundPaymentRateLimiter: RateLimiter,
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
-        50,
-        50,
-        0L,
+        100,
+        100,
+        1L,
         TimeUnit.SECONDS,
         LinkedBlockingQueue(8000),
         NamedThreadFactory("payment-submission-executor"),
@@ -40,8 +40,9 @@ class OrderPayer(
                     amount
                 )
             }
-            logger.trace("Payment {} for order {} created.", createdEvent.paymentId, orderId)
+            logger.info("Payment ${createdEvent.paymentId} for order $orderId created. Time left: ${deadline - now()}ms")
             paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+            logger.info("Order $orderId payment $paymentId was fully processed, time left: ${deadline - now()}ms")
         }
         return createdAt
     }
