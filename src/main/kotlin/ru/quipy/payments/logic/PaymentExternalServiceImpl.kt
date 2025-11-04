@@ -111,6 +111,8 @@ class PaymentExternalSystemAdapterImpl(
                 post(emptyBody)
             }.build()
 
+//            outboundPaymentRateLimiter.acquirePermission()
+
             client.newCall(request).execute().use { response ->
                 val body = try {
                     mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
