@@ -56,7 +56,6 @@ class APIController {
     }
 
     @PostMapping("/orders/{orderId}/payment")
-    @RateLimiter(name = "pay-order-rate-limiter")
     fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): PaymentSubmissionDto {
         val paymentId = UUID.randomUUID()
         val order = orderRepository.findById(orderId)?.let {

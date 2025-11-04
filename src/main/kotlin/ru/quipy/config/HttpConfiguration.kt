@@ -26,16 +26,6 @@ class HttpConfiguration {
     @Bean
     fun parallelRequestsLimiter(): ParallelRequestsLimiter {
         return OngoingWindow(parallelRequestsLimiterMaxSize)
-
-    @Value("\${app.rate-limiter.duration}")
-    private lateinit var rateLimiterDuration: Duration
-
-    @set:Value("\${app.rate-limiter.rate}")
-    private var rateLimiterRate by Delegates.notNull<Long>()
-
-    @Bean
-    fun rateLimiter(): RateLimiter {
-        return SlidingWindowRateLimiter(rateLimiterRate, rateLimiterDuration)
-
     }
+
 }

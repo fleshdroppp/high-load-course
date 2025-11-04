@@ -2,12 +2,18 @@ package ru.quipy.payments.logic
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.github.resilience4j.ratelimiter.RateLimiter
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.slf4j.LoggerFactory
+import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
+import ru.quipy.payments.exception.TooManyParallelPaymentsException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.*
@@ -17,8 +23,11 @@ import java.util.*
 class PaymentExternalSystemAdapterImpl(
     private val properties: PaymentAccountProperties,
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+    private val parallelRequestsLimiter: ParallelRequestsLimiter,
+    private val outboundPaymentRateLimiter: RateLimiter,
     private val paymentProviderHostPort: String,
     private val token: String,
+    private val meterRegistry: MeterRegistry
 ) : PaymentExternalSystemAdapter {
 
     companion object {
@@ -34,7 +43,35 @@ class PaymentExternalSystemAdapterImpl(
     private val rateLimitPerSec = properties.rateLimitPerSec
     private val parallelRequests = properties.parallelRequests
 
-    private val client = OkHttpClient.Builder().build()
+    private val client = OkHttpClient.Builder().callTimeout(Duration.ofSeconds(15)).build()
+
+    private val semaphoreWaitSuccessTimer by lazy {
+        Timer.builder("semaphore_wait_duration")
+            .tag("outcome", "SUCCESS")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
+    private val semaphoreWaitFailTimer by lazy {
+        Timer.builder("semaphore_wait_duration")
+            .tag("outcome", "FAIL")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
+    private val semaphoreWaitCounterWait by lazy {
+        Counter.builder("semaphore_wait_counter")
+            .tag("outcome", "WAIT")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
+
+    private val semaphoreWaitCounterFinish by lazy {
+        Counter.builder("semaphore_wait_counter")
+            .tag("outcome", "FINISH")
+            .tag("service", serviceName)
+            .register(meterRegistry)
+    }
 
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
         logger.warn("[$accountName] Submitting payment request for payment $paymentId")
@@ -47,6 +84,23 @@ class PaymentExternalSystemAdapterImpl(
             it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
         }
 
+        val waitStartTime = System.nanoTime()
+        semaphoreWaitCounterWait.increment()
+        if (!parallelRequestsLimiter.tryToAddRequest(59)) {
+            val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
+            semaphoreWaitFailTimer.record(waitDuration)
+            semaphoreWaitCounterFinish.increment()
+            logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
+            paymentESService.update(paymentId) {
+                it.logProcessing(success = false, now(), transactionId, "Timeout for acquiring semaphore reached!")
+            }
+            throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
+        }
+
+        val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
+        semaphoreWaitSuccessTimer.record(waitDuration)
+        semaphoreWaitCounterFinish.increment()
+
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
@@ -55,12 +109,14 @@ class PaymentExternalSystemAdapterImpl(
                 post(emptyBody)
             }.build()
 
+            RateLimiter.waitForPermission(outboundPaymentRateLimiter)
+
             client.newCall(request).execute().use { response ->
                 val body = try {
                     mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
                 } catch (e: Exception) {
                     logger.error("[$accountName] [ERROR] Payment processed for txId: $transactionId, payment: $paymentId, result code: ${response.code}, reason: ${response.body?.string()}")
-                    ExternalSysResponse(transactionId.toString(), paymentId.toString(),false, e.message)
+                    ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
                 }
 
                 logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, message: ${body.message}")
@@ -88,6 +144,9 @@ class PaymentExternalSystemAdapterImpl(
                     }
                 }
             }
+        } finally {
+            parallelRequestsLimiter.releaseRequest()
+            logger.info("after awaitingQueueSize = ${parallelRequestsLimiter.awaitingQueueSize()}")
         }
     }
 
