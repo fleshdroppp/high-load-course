@@ -1,5 +1,6 @@
 package ru.quipy.payments.logic
 
+import io.github.resilience4j.ratelimiter.RateLimiter
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
