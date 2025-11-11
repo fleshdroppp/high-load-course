@@ -1,6 +1,7 @@
 package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
+import io.github.resilience4j.ratelimiter.RateLimiter
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -21,6 +22,7 @@ class ExternalPaymentClient(
     private val paymentProviderHostPort: String,
     private val paymentToken: String,
     private val retryAmount: Int,
+    private val outboundRateLimiter: RateLimiter,
     private val clock: Clock,
 ) {
     init {
@@ -28,7 +30,7 @@ class ExternalPaymentClient(
     }
 
     private val client = OkHttpClient.Builder()
-        .callTimeout(properties.averageProcessingTime.toMillis(), TimeUnit.MILLISECONDS)
+        .callTimeout(properties.averageProcessingTime.toMillis() + 2000, TimeUnit.MILLISECONDS)
         .build()
 
     fun executePayment(
@@ -46,20 +48,27 @@ class ExternalPaymentClient(
     }
 
     private fun executeWithRetries(request: Request, deadline: Instant): ExternalSysResponse? {
-        val cnt = 0
+        var requestCount = 0
         var response: Response? = null
 
-        while (cnt <= retryAmount) {
-            if (clock.instant().plus(properties.averageProcessingTime) > deadline) {
-                throw ClientException("Not enough time for payment")
-            }
-
+        while (requestCount <= retryAmount) {
+//            if (clock.instant().plus(properties.averageProcessingTime) > deadline) {
+//                throw ClientException("Not enough time for payment")
+//            }
             response?.close()
+            RateLimiter.waitForPermission(outboundRateLimiter)
             response = executeRequest(request)
             if (response?.isSuccessful == true) break
+
+            requestCount++
+        }
+
+        if (requestCount > retryAmount) {
+            throw ClientException("Retries exhausted! Could not get response with $retryAmount retries")
         }
 
         requireNotNull(response)
+
         if (!response.isSuccessful) {
             throw ClientException("Could not get successful response with $retryAmount retries")
         }

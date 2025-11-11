@@ -52,8 +52,9 @@ class PaymentAccountsConfig {
     @Bean
     fun outboundPaymentRateLimiter(): RateLimiter =
         RateLimiter.of(
-            "payment-system-outbound", RateLimiterConfig.custom()
-                .limitForPeriod(11)
+            "payment-system-outbound",
+            RateLimiterConfig.custom()
+                .limitForPeriod(120)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
                 .timeoutDuration(Duration.ofMillis(5000))
                 .build()
@@ -86,7 +87,8 @@ class PaymentAccountsConfig {
                     paymentProviderHostPort,
                     token,
                     retryAmount = 3,
-                    clock,
+                    outboundPaymentRateLimiter,
+                    clock
                 )
 
                 PaymentExternalSystemAdapterImpl(
