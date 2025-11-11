@@ -1,11 +1,9 @@
 package ru.quipy.payments.logic
 
-import io.github.resilience4j.ratelimiter.RateLimiter
 import org.springframework.stereotype.Service
 import ru.quipy.common.utils.CallerBlockingRejectedExecutionHandler
 import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
 import ru.quipy.common.utils.NamedThreadFactory
-import ru.quipy.common.utils.exhausting
 import ru.quipy.common.utils.logger
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
@@ -18,7 +16,6 @@ import java.util.concurrent.TimeUnit
 class OrderPayer(
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
     private val paymentService: PaymentService,
-    outboundPaymentRateLimiter: RateLimiter,
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
         100,
