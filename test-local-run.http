@@ -1,4 +1,5 @@
 ### Run test locally
+
 @runHost = localhost
 POST http://{{runHost}}:1234/test/run
 Content-Type: application/json
@@ -6,12 +7,12 @@ Content-Type: application/json
 {
   "serviceName": "test-local",
   "token": "test-local",
-  "ratePerSecond": 2,
-  "testCount": 100,
-  "processingTimeMillis": 60000,
+  "ratePerSecond": 100,
+  "testCount": 5000,
+  "processingTimeMillis": 20000,
   "onPremises": false
 }
 
 ### Stop running test to save time and resources
 # @timeout 120
-POST http://{{runHost}}:1234/test/stop/{{serviceName}}
+POST http://{{runHost}}:1234/test/stop/test-local

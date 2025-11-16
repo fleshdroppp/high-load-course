@@ -4,8 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
 import java.time.Duration
 import java.util.concurrent.Executors
@@ -16,7 +14,8 @@ class SlidingWindowRateLimiter(
     private val rate: Long,
     private val window: Duration,
 ) : RateLimiter {
-    private val rateLimiterScope = CoroutineScope(Executors.newSingleThreadExecutor().decorateWithMdc().asCoroutineDispatcher())
+    private val rateLimiterScope =
+        CoroutineScope(Executors.newSingleThreadExecutor().decorateWithMdc().asCoroutineDispatcher())
 
     private val sum = AtomicLong(0)
     private val queue = PriorityBlockingQueue<Measure>(10_000)
@@ -63,7 +62,8 @@ class SlidingWindowRateLimiter(
             queue.take()
         }
     }.invokeOnCompletion { th -> if (th != null) logger.error("Rate limiter release job completed", th) }
+
     companion object {
-        private val logger: Logger = LoggerFactory.getLogger(SlidingWindowRateLimiter::class.java)
+        private val logger = logger()
     }
 }
