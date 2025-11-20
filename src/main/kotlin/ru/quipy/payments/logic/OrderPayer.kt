@@ -1,5 +1,8 @@
 package ru.quipy.payments.logic
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import org.springframework.stereotype.Service
 import ru.quipy.common.utils.CallerBlockingRejectedExecutionHandler
 import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
@@ -19,17 +22,17 @@ class OrderPayer(
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
         100,
-120,
+        100,
         1L,
         TimeUnit.SECONDS,
         LinkedBlockingQueue(8000),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
-    ).decorateWithMdc()
+    ).decorateWithMdc().asCoroutineDispatcher()
 
-    fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
+    suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-        paymentExecutor.execute {
+        CoroutineScope(paymentExecutor).launch {
             val createdEvent = paymentESService.create {
                 it.create(
                     paymentId,

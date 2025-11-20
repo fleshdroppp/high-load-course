@@ -67,7 +67,7 @@ class PaymentExternalSystemAdapterImpl(
 
     override fun name() = properties.accountName
 
-    override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
+    override suspend fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
         val transactionId = UUID.randomUUID()
 
         withMdc(MdcKeys.PAYMENT_ID to paymentId, MdcKeys.TRANSACTION_ID to transactionId) {
@@ -75,7 +75,7 @@ class PaymentExternalSystemAdapterImpl(
         }
     }
 
-    private fun performPaymentAsyncInternal(
+    private suspend fun performPaymentAsyncInternal(
         paymentId: UUID,
         transactionId: UUID,
         amount: Int,

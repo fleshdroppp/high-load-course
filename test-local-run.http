@@ -1,6 +1,6 @@
 ### Run test locally
 
-@runHost = localhost
+@runHost = 172.23.144.141
 POST http://{{runHost}}:1234/test/run
 Content-Type: application/json
 
