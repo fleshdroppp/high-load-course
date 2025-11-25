@@ -44,6 +44,8 @@ class ExternalPaymentClient(
     }
 
     private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+        RateLimiter.waitForPermission(outboundRateLimiter)
+
         val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
         return response.body().toExternalSysResponse()
     }
