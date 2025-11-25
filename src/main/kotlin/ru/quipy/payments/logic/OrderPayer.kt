@@ -40,9 +40,9 @@ class OrderPayer(
                     amount
                 )
             }
-            logger.info("Payment ${createdEvent.paymentId} for order $orderId created. Time left: ${deadline - now()}ms")
+            logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
             paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
-            logger.info("Order $orderId payment $paymentId was fully processed, time left: ${deadline - now()}ms")
+            logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
         }
         return createdAt
     }
