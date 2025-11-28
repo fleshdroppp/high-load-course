@@ -27,7 +27,7 @@ class ExternalPaymentClient(
         require(retryAmount >= 0) { "Retry amount must be >=0" }
     }
 
-    private val client = HttpClient.newBuilder().build()
+    private val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
 
     suspend fun executePayment(
         transactionId: UUID,
