@@ -4,6 +4,8 @@ import io.github.resilience4j.ratelimiter.RateLimiter
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ru.quipy.common.utils.MdcKeys
 import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
@@ -88,8 +90,10 @@ class PaymentExternalSystemAdapterImpl(
 
         // Вне зависимости от исхода оплаты важно отметить что она была отправлена.
         // Это требуется сделать ВО ВСЕХ СЛУЧАЯХ, поскольку эта информация используется сервисом тестирования.
-        paymentESService.update(paymentId) {
-            it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
+        withContext(Dispatchers.IO) {
+            paymentESService.update(paymentId) {
+                it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
+            }
         }
 
         val waitStartTime = System.nanoTime()
@@ -112,23 +116,29 @@ class PaymentExternalSystemAdapterImpl(
             val externalSysResponse =
                 externalPaymentClient.executePayment(transactionId, paymentId, amount, deadlineInstant)
 
-            paymentESService.update(paymentId) {
-                it.logProcessing(externalSysResponse.result, now(), transactionId, reason = externalSysResponse.message)
+            withContext(Dispatchers.IO) {
+                paymentESService.update(paymentId) {
+                    it.logProcessing(externalSysResponse.result, now(), transactionId, reason = externalSysResponse.message)
+                }
             }
         } catch (e: Exception) {
             when (e) {
                 is SocketTimeoutException -> {
                     logger.error("[$accountName] Payment timeout for txId: $transactionId, payment: $paymentId", e)
-                    paymentESService.update(paymentId) {
-                        it.logProcessing(false, now(), transactionId, reason = "Request timeout.")
+                    withContext(Dispatchers.IO) {
+                        paymentESService.update(paymentId) {
+                            it.logProcessing(false, now(), transactionId, reason = "Request timeout.")
+                        }
                     }
                 }
 
                 else -> {
                     logger.error("[$accountName] Payment failed for txId: $transactionId, payment: $paymentId", e)
 
-                    paymentESService.update(paymentId) {
-                        it.logProcessing(false, now(), transactionId, reason = e.message)
+                    withContext(Dispatchers.IO) {
+                        paymentESService.update(paymentId) {
+                            it.logProcessing(false, now(), transactionId, reason = e.message)
+                        }
                     }
                 }
             }
