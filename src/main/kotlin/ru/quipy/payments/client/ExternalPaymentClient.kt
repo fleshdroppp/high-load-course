@@ -2,8 +2,8 @@ package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
 import io.github.resilience4j.ratelimiter.RateLimiter
-import io.github.resilience4j.ratelimiter.RequestNotPermitted
 import kotlinx.coroutines.future.await
+import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.onlineShopObjectMapper
 import ru.quipy.exception.ResourceExhaustedRetryableException
@@ -22,8 +22,9 @@ class ExternalPaymentClient(
     private val paymentProviderHostPort: String,
     private val paymentToken: String,
     private val retryAmount: Int,
-    private val outboundRateLimiter: RateLimiter,
     private val clock: Clock,
+    private val outboundRateLimiter: RateLimiter,
+    private val outboundParallelRequestLimiter: ParallelRequestsLimiter,
 ) {
     init {
         require(retryAmount >= 0) { "Retry amount must be >=0" }
@@ -42,7 +43,19 @@ class ExternalPaymentClient(
                 .POST(HttpRequest.BodyPublishers.ofString(EMPTY_BODY))
                 .build()
 
-        return executeWithRetries(request, deadline).orDefaultError(transactionId, paymentId)
+        return executeWithParallelLimitCheck(request, deadline).orDefaultError(transactionId, paymentId)
+    }
+
+    private suspend fun executeWithParallelLimitCheck(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+        if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
+            throw ResourceExhaustedRetryableException(100)
+        }
+
+        try {
+            return executeWithRetries(request, deadline)
+        } finally {
+            outboundParallelRequestLimiter.releaseRequest()
+        }
     }
 
     private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {

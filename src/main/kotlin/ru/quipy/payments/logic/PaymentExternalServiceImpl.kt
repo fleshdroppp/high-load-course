@@ -1,20 +1,13 @@
 package ru.quipy.payments.logic
 
-import io.github.resilience4j.ratelimiter.RateLimiter
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.quipy.common.utils.MdcKeys
-import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.withMdc
 import ru.quipy.core.EventSourcingService
-import ru.quipy.exception.ResourceExhaustedRetryableException
 import ru.quipy.payments.api.PaymentAggregate
 import ru.quipy.payments.client.ExternalPaymentClient
-import ru.quipy.payments.exception.TooManyParallelPaymentsException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.time.Instant
@@ -25,44 +18,10 @@ import java.util.*
 class PaymentExternalSystemAdapterImpl(
     private val properties: PaymentAccountProperties,
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
-    private val parallelRequestsLimiter: ParallelRequestsLimiter,
-    private val meterRegistry: MeterRegistry,
     private val externalPaymentClient: ExternalPaymentClient,
 ) : PaymentExternalSystemAdapter {
 
-    private val serviceName = properties.serviceName
     private val accountName = properties.accountName
-    private val requestAverageProcessingTime = properties.averageProcessingTime
-    private val rateLimitPerSec = properties.rateLimitPerSec
-    private val parallelRequests = properties.parallelRequests
-
-    private val semaphoreWaitSuccessTimer by lazy {
-        Timer.builder("semaphore_wait_duration")
-            .tag("outcome", "SUCCESS")
-            .tag("service", serviceName)
-            .register(meterRegistry)
-    }
-
-    private val semaphoreWaitFailTimer by lazy {
-        Timer.builder("semaphore_wait_duration")
-            .tag("outcome", "FAIL")
-            .tag("service", serviceName)
-            .register(meterRegistry)
-    }
-
-    private val semaphoreWaitCounterWait by lazy {
-        Counter.builder("semaphore_wait_counter")
-            .tag("outcome", "WAIT")
-            .tag("service", serviceName)
-            .register(meterRegistry)
-    }
-
-    private val semaphoreWaitCounterFinish by lazy {
-        Counter.builder("semaphore_wait_counter")
-            .tag("outcome", "FINISH")
-            .tag("service", serviceName)
-            .register(meterRegistry)
-    }
 
     override fun price() = properties.price
 
@@ -97,20 +56,6 @@ class PaymentExternalSystemAdapterImpl(
             }
         }
 
-        val waitStartTime = System.nanoTime()
-        semaphoreWaitCounterWait.increment()
-        if (!parallelRequestsLimiter.tryToAddRequest(20)) {
-            val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
-            semaphoreWaitFailTimer.record(waitDuration)
-            semaphoreWaitCounterFinish.increment()
-            logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
-            throw ResourceExhaustedRetryableException(100)
-        }
-
-        val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
-        semaphoreWaitSuccessTimer.record(waitDuration)
-        semaphoreWaitCounterFinish.increment()
-
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
@@ -144,7 +89,6 @@ class PaymentExternalSystemAdapterImpl(
                 }
             }
         } finally {
-            parallelRequestsLimiter.releaseRequest()
             logger.info("Payment: $paymentId finished and released lock, time left: ${deadline - now()}")
         }
     }

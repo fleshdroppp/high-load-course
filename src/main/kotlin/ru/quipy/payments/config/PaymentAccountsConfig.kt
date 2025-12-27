@@ -87,15 +87,14 @@ class PaymentAccountsConfig {
                     paymentProviderHostPort,
                     token,
                     retryAmount = 3,
+                    clock,
                     outboundPaymentRateLimiter,
-                    clock
+                    parallelRequestsLimiter,
                 )
 
                 PaymentExternalSystemAdapterImpl(
                     it,
                     paymentService,
-                    parallelRequestsLimiter,
-                    meterRegistry,
                     client,
                 )
             }
