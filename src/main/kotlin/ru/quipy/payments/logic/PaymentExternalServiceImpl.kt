@@ -11,6 +11,7 @@ import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.withMdc
 import ru.quipy.core.EventSourcingService
+import ru.quipy.exception.ResourceExhaustedRetryableException
 import ru.quipy.payments.api.PaymentAggregate
 import ru.quipy.payments.client.ExternalPaymentClient
 import ru.quipy.payments.exception.TooManyParallelPaymentsException
@@ -103,7 +104,7 @@ class PaymentExternalSystemAdapterImpl(
             semaphoreWaitFailTimer.record(waitDuration)
             semaphoreWaitCounterFinish.increment()
             logger.warn("Dropped order with payment_id = $paymentId! Timeout for acquiring semaphore reached!")
-            throw TooManyParallelPaymentsException("Parallel requests limit was reached!")
+            throw ResourceExhaustedRetryableException(100)
         }
 
         val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
