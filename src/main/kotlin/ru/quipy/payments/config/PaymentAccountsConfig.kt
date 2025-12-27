@@ -54,9 +54,9 @@ class PaymentAccountsConfig {
         RateLimiter.of(
             "payment-system-outbound",
             RateLimiterConfig.custom()
-                .limitForPeriod(1050)
+                .limitForPeriod(1010)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
-                .timeoutDuration(Duration.ofMillis(5000))
+                .timeoutDuration(Duration.ofMillis(10000))
                 .build()
         )
 
