@@ -48,7 +48,7 @@ class ExternalPaymentClient(
     private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
         try {
             RateLimiter.waitForPermission(outboundRateLimiter)
-        } catch (e: RequestNotPermitted) {
+        } catch (e: Exception) {
             throw ResourceExhaustedRetryableException(100)
         }
 
