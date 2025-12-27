@@ -63,7 +63,7 @@ class APIController {
     @PostMapping("/orders/{orderId}/payment")
     suspend fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): PaymentSubmissionDto {
         if (!rateLimiter.tick()) {
-            throw ResourceExhaustedRetryableException(10000)
+            throw ResourceExhaustedRetryableException(100)
         }
         logger.debug("Acquired lock for {} created. Time left: {}ms", orderId, deadline - now())
 
