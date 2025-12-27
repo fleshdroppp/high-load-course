@@ -98,7 +98,7 @@ class PaymentExternalSystemAdapterImpl(
 
         val waitStartTime = System.nanoTime()
         semaphoreWaitCounterWait.increment()
-        if (!parallelRequestsLimiter.tryToAddRequest(10)) {
+        if (!parallelRequestsLimiter.tryToAddRequest(5)) {
             val waitDuration = Duration.ofNanos(System.nanoTime() - waitStartTime)
             semaphoreWaitFailTimer.record(waitDuration)
             semaphoreWaitCounterFinish.increment()
