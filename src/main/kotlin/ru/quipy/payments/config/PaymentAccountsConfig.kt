@@ -56,7 +56,7 @@ class PaymentAccountsConfig {
             RateLimiterConfig.custom()
                 .limitForPeriod(1000)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
-                .timeoutDuration(Duration.ofMillis(2000))
+                .timeoutDuration(Duration.ofMillis(3000))
                 .build()
         )
 
