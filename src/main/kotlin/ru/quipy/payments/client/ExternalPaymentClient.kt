@@ -2,9 +2,11 @@ package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
 import io.github.resilience4j.ratelimiter.RateLimiter
+import io.github.resilience4j.ratelimiter.RequestNotPermitted
 import kotlinx.coroutines.future.await
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.onlineShopObjectMapper
+import ru.quipy.exception.ResourceExhaustedRetryableException
 import ru.quipy.payments.logic.ExternalSysResponse
 import ru.quipy.payments.logic.PaymentAccountProperties
 import java.net.URI
@@ -44,7 +46,11 @@ class ExternalPaymentClient(
     }
 
     private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
-        RateLimiter.waitForPermission(outboundRateLimiter)
+        try {
+            RateLimiter.waitForPermission(outboundRateLimiter)
+        } catch (e: RequestNotPermitted) {
+            throw ResourceExhaustedRetryableException(100)
+        }
 
         val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
         return response.body().toExternalSysResponse()
