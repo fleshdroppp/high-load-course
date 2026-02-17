@@ -16,9 +16,9 @@
     <description>Application for resilience and highly-loaded applications course</description>
 
     <properties>
-        <kotlin.version>2.0.0</kotlin.version>
-        <kotlinx-coroutines-core.version>1.9.0</kotlinx-coroutines-core.version>
-        <okhttp.version>4.12.0</okhttp.version>
+        <kotlin.version>2.2.0</kotlin.version>
+        <kotlinx-coroutines-core.version>1.8.0</kotlinx-coroutines-core.version>
+        <okhttp.version>5.3.2</okhttp.version>
         <tiny.es.version>2.7.5</tiny.es.version>
         <resilience4jVersion>2.2.0</resilience4jVersion>
         <json-datatype.version>2.9.8</json-datatype.version>
@@ -51,11 +51,7 @@
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-coroutines-reactor</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>${okhttp.version}</version>
+            <version>${kotlinx-coroutines-core.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -54,9 +54,9 @@ class PaymentAccountsConfig {
         RateLimiter.of(
             "payment-system-outbound",
             RateLimiterConfig.custom()
-                .limitForPeriod(120)
+                .limitForPeriod(1000)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
-                .timeoutDuration(Duration.ofMillis(5000))
+                .timeoutDuration(Duration.ofMillis(3000))
                 .build()
         )
 
@@ -87,15 +87,14 @@ class PaymentAccountsConfig {
                     paymentProviderHostPort,
                     token,
                     retryAmount = 3,
+                    clock,
                     outboundPaymentRateLimiter,
-                    clock
+                    parallelRequestsLimiter,
                 )
 
                 PaymentExternalSystemAdapterImpl(
                     it,
                     paymentService,
-                    parallelRequestsLimiter,
-                    meterRegistry,
                     client,
                 )
             }

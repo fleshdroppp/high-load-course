@@ -1,5 +1,8 @@
 package ru.quipy.payments.logic
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import org.springframework.stereotype.Service
 import ru.quipy.common.utils.CallerBlockingRejectedExecutionHandler
 import ru.quipy.common.utils.MdcExecutorDecorator.Companion.decorateWithMdc
@@ -18,18 +21,18 @@ class OrderPayer(
     private val paymentService: PaymentService,
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
-        100,
-        120,
+        130,
+        130,
         1L,
         TimeUnit.SECONDS,
         LinkedBlockingQueue(8000),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
-    ).decorateWithMdc()
+    ).decorateWithMdc().asCoroutineDispatcher()
 
-    fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
+    suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-        paymentExecutor.execute {
+        CoroutineScope(paymentExecutor).launch {
             val createdEvent = paymentESService.create {
                 it.create(
                     paymentId,
@@ -37,9 +40,9 @@ class OrderPayer(
                     amount
                 )
             }
-            logger.info("Payment ${createdEvent.paymentId} for order $orderId created. Time left: ${deadline - now()}ms")
+            logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
             paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
-            logger.info("Order $orderId payment $paymentId was fully processed, time left: ${deadline - now()}ms")
+            logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
         }
         return createdAt
     }

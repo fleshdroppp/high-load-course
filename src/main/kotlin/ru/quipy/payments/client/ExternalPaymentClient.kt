@@ -2,92 +2,74 @@ package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
 import io.github.resilience4j.ratelimiter.RateLimiter
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
+import kotlinx.coroutines.future.await
+import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.onlineShopObjectMapper
-import ru.quipy.payments.exception.ClientException
+import ru.quipy.exception.ResourceExhaustedRetryableException
 import ru.quipy.payments.logic.ExternalSysResponse
 import ru.quipy.payments.logic.PaymentAccountProperties
-import java.io.InterruptedIOException
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Instant
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 class ExternalPaymentClient(
     private val properties: PaymentAccountProperties,
     private val paymentProviderHostPort: String,
     private val paymentToken: String,
     private val retryAmount: Int,
-    private val outboundRateLimiter: RateLimiter,
     private val clock: Clock,
+    private val outboundRateLimiter: RateLimiter,
+    private val outboundParallelRequestLimiter: ParallelRequestsLimiter,
 ) {
     init {
         require(retryAmount >= 0) { "Retry amount must be >=0" }
     }
 
-    private val client = OkHttpClient.Builder()
-        .callTimeout(properties.averageProcessingTime.toMillis() + 2000, TimeUnit.MILLISECONDS)
-        .build()
+    private val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
 
-    fun executePayment(
+    suspend fun executePayment(
         transactionId: UUID,
         paymentId: UUID,
         amount: Int,
         deadline: Instant,
     ): ExternalSysResponse {
-        val request = Request.Builder().run {
-            url(buildRequestUrl(transactionId.toString(), paymentId.toString(), amount.toString()))
-            post(EMPTY_BODY)
-        }.build()
+        val request =
+            HttpRequest.newBuilder(buildRequestUrl(transactionId.toString(), paymentId.toString(), amount.toString()))
+                .POST(HttpRequest.BodyPublishers.ofString(EMPTY_BODY))
+                .build()
 
-        return executeWithRetries(request, deadline).orDefaultError(transactionId, paymentId)
+        return executeWithParallelLimitCheck(request, deadline).orDefaultError(transactionId, paymentId)
     }
 
-    private fun executeWithRetries(request: Request, deadline: Instant): ExternalSysResponse? {
-        var requestCount = 0
-        var response: Response? = null
+    private suspend fun executeWithParallelLimitCheck(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+        if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
+            throw ResourceExhaustedRetryableException(1000)
+        }
 
-        while (requestCount <= retryAmount) {
-//            if (clock.instant().plus(properties.averageProcessingTime) > deadline) {
-//                throw ClientException("Not enough time for payment")
-//            }
-            response?.close()
+        try {
+            return executeWithRetries(request, deadline)
+        } finally {
+            outboundParallelRequestLimiter.releaseRequest()
+        }
+    }
+
+    private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+        try {
             RateLimiter.waitForPermission(outboundRateLimiter)
-            response = executeRequest(request)
-            if (response?.isSuccessful == true) break
-
-            requestCount++
-        }
-
-        if (requestCount > retryAmount) {
-            throw ClientException("Retries exhausted! Could not get response with $retryAmount retries")
-        }
-
-        requireNotNull(response)
-
-        if (!response.isSuccessful) {
-            throw ClientException("Could not get successful response with $retryAmount retries")
-        }
-
-        return response.body?.string().toExternalSysResponse().also { response.close() }
-    }
-
-    private fun executeRequest(request: Request): Response? {
-        return try {
-            client.newCall(request).execute()
         } catch (e: Exception) {
-            when (e) {
-                is InterruptedIOException -> null
-                else -> throw e
-            }
+            throw ResourceExhaustedRetryableException(1000)
         }
+
+        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
+        return response.body().toExternalSysResponse()
     }
 
-    private fun buildRequestUrl(transactionId: String, paymentId: String, amount: String): String {
+    private fun buildRequestUrl(transactionId: String, paymentId: String, amount: String): URI {
         val sb = StringBuilder()
 
         sb.append("http://")
@@ -100,7 +82,7 @@ class ExternalPaymentClient(
             .append("&paymentId=").append(paymentId)
             .append("&amount=").append(amount)
 
-        return sb.toString()
+        return URI(sb.toString())
     }
 
     private fun String?.toExternalSysResponse(): ExternalSysResponse? {
@@ -127,6 +109,6 @@ class ExternalPaymentClient(
         private val objectMapper = onlineShopObjectMapper()
         private val EXTERNAL_SYS_RESPONSE_TR = object : TypeReference<ExternalSysResponse>() {}
 
-        private val EMPTY_BODY = "".toRequestBody()
+        private const val EMPTY_BODY = ""
     }
 }

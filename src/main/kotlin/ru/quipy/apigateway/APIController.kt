@@ -4,12 +4,10 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.*
-import ru.quipy.common.utils.LeakyBucketRateLimiter
 import ru.quipy.common.utils.RateLimiter
 import ru.quipy.exception.ResourceExhaustedRetryableException
 import ru.quipy.orders.repository.OrderRepository
 import ru.quipy.payments.logic.OrderPayer
-import ru.quipy.payments.logic.OrderPayer.Companion
 import ru.quipy.payments.logic.now
 import java.util.*
 
@@ -65,9 +63,9 @@ class APIController {
     @PostMapping("/orders/{orderId}/payment")
     suspend fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): PaymentSubmissionDto {
         if (!rateLimiter.tick()) {
-            throw ResourceExhaustedRetryableException(500)
+            throw ResourceExhaustedRetryableException(100)
         }
-        logger.info("Acquired lock for $orderId created. Time left: ${deadline - now()}ms")
+        logger.debug("Acquired lock for {} created. Time left: {}ms", orderId, deadline - now())
 
         val paymentId = UUID.randomUUID()
         val order = orderRepository.findById(orderId)?.let {
