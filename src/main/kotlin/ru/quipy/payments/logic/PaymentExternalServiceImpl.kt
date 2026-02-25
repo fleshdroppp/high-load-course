@@ -1,7 +1,5 @@
 package ru.quipy.payments.logic
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import ru.quipy.common.utils.MdcKeys
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.withMdc
@@ -12,6 +10,7 @@ import java.net.SocketTimeoutException
 import java.time.Duration
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.Executors
 
 
 // Advice: always treat time as a Duration
@@ -20,6 +19,8 @@ class PaymentExternalSystemAdapterImpl(
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
     private val externalPaymentClient: ExternalPaymentClient,
 ) : PaymentExternalSystemAdapter {
+
+    private val updateExecutor = Executors.newVirtualThreadPerTaskExecutor()
 
     private val accountName = properties.accountName
 
@@ -50,7 +51,7 @@ class PaymentExternalSystemAdapterImpl(
 
         // Вне зависимости от исхода оплаты важно отметить что она была отправлена.
         // Это требуется сделать ВО ВСЕХ СЛУЧАЯХ, поскольку эта информация используется сервисом тестирования.
-        withContext(Dispatchers.IO) {
+        updateExecutor.execute {
             paymentESService.update(paymentId) {
                 it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
             }
@@ -62,7 +63,7 @@ class PaymentExternalSystemAdapterImpl(
             val externalSysResponse =
                 externalPaymentClient.executePayment(transactionId, paymentId, amount, deadlineInstant)
 
-            withContext(Dispatchers.IO) {
+            updateExecutor.execute {
                 paymentESService.update(paymentId) {
                     it.logProcessing(externalSysResponse.result, now(), transactionId, reason = externalSysResponse.message)
                 }
@@ -71,7 +72,7 @@ class PaymentExternalSystemAdapterImpl(
             when (e) {
                 is SocketTimeoutException -> {
                     logger.error("[$accountName] Payment timeout for txId: $transactionId, payment: $paymentId", e)
-                    withContext(Dispatchers.IO) {
+                    updateExecutor.execute {
                         paymentESService.update(paymentId) {
                             it.logProcessing(false, now(), transactionId, reason = "Request timeout.")
                         }
@@ -81,7 +82,7 @@ class PaymentExternalSystemAdapterImpl(
                 else -> {
                     logger.error("[$accountName] Payment failed for txId: $transactionId, payment: $paymentId", e)
 
-                    withContext(Dispatchers.IO) {
+                    updateExecutor.execute {
                         paymentESService.update(paymentId) {
                             it.logProcessing(false, now(), transactionId, reason = e.message)
                         }

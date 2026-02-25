@@ -11,6 +11,7 @@ import ru.quipy.common.utils.logger
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
 import java.util.*
+import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -21,14 +22,13 @@ class OrderPayer(
     private val paymentService: PaymentService,
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
-        130,
-        130,
-        1L,
-        TimeUnit.SECONDS,
+        200,
+        1200,
+        60L, TimeUnit.SECONDS,
         LinkedBlockingQueue(8000),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
-    ).decorateWithMdc().asCoroutineDispatcher()
+    ).asCoroutineDispatcher()
 
     suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()

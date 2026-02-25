@@ -16,6 +16,7 @@ import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.Executors
 
 class ExternalPaymentClient(
     private val properties: PaymentAccountProperties,
@@ -30,7 +31,10 @@ class ExternalPaymentClient(
         require(retryAmount >= 0) { "Retry amount must be >=0" }
     }
 
-    private val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
+    private val client = HttpClient.newBuilder()
+        .version(HttpClient.Version.HTTP_2)
+        .executor(Executors.newFixedThreadPool(100))
+        .build()
 
     suspend fun executePayment(
         transactionId: UUID,

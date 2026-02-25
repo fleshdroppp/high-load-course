@@ -21,10 +21,7 @@ class PaymentSubscriber {
 
 
     @Autowired
-    lateinit var subscriptionsManager: AggregateSubscriptionsManager
-
-    @Autowired
-    private lateinit var orderRepository: OrderRepository
+    private lateinit var subscriptionsManager: AggregateSubscriptionsManager
 
     @PostConstruct
     fun init() {
