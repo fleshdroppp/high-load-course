@@ -32,20 +32,20 @@ class OrderPayer(
 
     suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-        paymentExecutor.launch {
-            val b = System.currentTimeMillis()
-            val createdEvent = paymentESService.create {
-                it.create(
-                    paymentId,
-                    orderId,
-                    amount
-                )
-            }
-            logger.error("DEBUG: created for ${now() - b}")
-            logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
-            paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
-            logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
+//        paymentExecutor.launch {
+        val b = System.currentTimeMillis()
+        val createdEvent = paymentESService.create {
+            it.create(
+                paymentId,
+                orderId,
+                amount
+            )
         }
+        logger.error("DEBUG: created for ${now() - b}")
+        logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
+        paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+        logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
+//        }
         return createdAt
     }
 
