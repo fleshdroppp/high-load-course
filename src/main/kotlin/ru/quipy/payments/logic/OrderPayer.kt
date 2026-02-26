@@ -22,30 +22,30 @@ class OrderPayer(
     private val paymentService: PaymentService,
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
-        200,
-        200,
+        50,
+        50,
         60L, TimeUnit.SECONDS,
         LinkedBlockingQueue(1),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
-    ).asCoroutineDispatcher().let { CoroutineScope(it) }
+    )
 
-    suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
+    fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-//        paymentExecutor.launch {
-        val b = System.currentTimeMillis()
-        val createdEvent = paymentESService.create {
-            it.create(
-                paymentId,
-                orderId,
-                amount
-            )
+        paymentExecutor.execute {
+            val b = System.currentTimeMillis()
+            val createdEvent = paymentESService.create {
+                it.create(
+                    paymentId,
+                    orderId,
+                    amount
+                )
+            }
+            logger.error("DEBUG: created for ${now() - b}")
+            logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
+            paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+            logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
         }
-        logger.error("DEBUG: created for ${now() - b}")
-        logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
-        paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
-        logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
-//        }
         return createdAt
     }
 

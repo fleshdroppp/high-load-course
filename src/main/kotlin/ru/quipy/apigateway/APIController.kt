@@ -61,7 +61,7 @@ class APIController {
     }
 
     @PostMapping("/orders/{orderId}/payment")
-    suspend fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): PaymentSubmissionDto {
+    fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): PaymentSubmissionDto {
         if (!rateLimiter.tick()) {
             throw ResourceExhaustedRetryableException(100)
         }

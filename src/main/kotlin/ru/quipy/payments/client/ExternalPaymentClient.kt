@@ -16,6 +16,7 @@ import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 
 class ExternalPaymentClient(
@@ -36,21 +37,21 @@ class ExternalPaymentClient(
         .executor(Executors.newFixedThreadPool(100))
         .build()
 
-    suspend fun executePayment(
+    fun executePayment(
         transactionId: UUID,
         paymentId: UUID,
         amount: Int,
         deadline: Instant,
-    ): ExternalSysResponse {
+    ): CompletableFuture<ExternalSysResponse> {
         val request =
             HttpRequest.newBuilder(buildRequestUrl(transactionId.toString(), paymentId.toString(), amount.toString()))
                 .POST(HttpRequest.BodyPublishers.ofString(EMPTY_BODY))
                 .build()
 
-        return executeWithParallelLimitCheck(request, deadline).orDefaultError(transactionId, paymentId)
+        return executeWithParallelLimitCheck(request, deadline).thenApply { it.orDefaultError(transactionId, paymentId) }
     }
 
-    private suspend fun executeWithParallelLimitCheck(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+    private fun executeWithParallelLimitCheck(request: HttpRequest, deadline: Instant): CompletableFuture<ExternalSysResponse?> {
 //        if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
 //            throw ResourceExhaustedRetryableException(1000)
 //        }
@@ -62,15 +63,15 @@ class ExternalPaymentClient(
         }
     }
 
-    private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+    private fun executeWithRetries(request: HttpRequest, deadline: Instant): CompletableFuture<ExternalSysResponse?> {
         try {
             RateLimiter.waitForPermission(outboundRateLimiter)
         } catch (e: Exception) {
             throw ResourceExhaustedRetryableException(1000)
         }
 
-        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
-        return response.body().toExternalSysResponse()
+        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        return response.thenApply { it.body().toExternalSysResponse() }
     }
 
     private fun buildRequestUrl(transactionId: String, paymentId: String, amount: String): URI {
