@@ -51,9 +51,9 @@ class ExternalPaymentClient(
     }
 
     private suspend fun executeWithParallelLimitCheck(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
-        if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
-            throw ResourceExhaustedRetryableException(1000)
-        }
+//        if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
+//            throw ResourceExhaustedRetryableException(1000)
+//        }
 
         try {
             return executeWithRetries(request, deadline)

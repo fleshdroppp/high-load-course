@@ -20,7 +20,7 @@ class PaymentExternalSystemAdapterImpl(
     private val externalPaymentClient: ExternalPaymentClient,
 ) : PaymentExternalSystemAdapter {
 
-    private val updateExecutor = Executors.newFixedThreadPool(500)
+    private val updateExecutor = Executors.newFixedThreadPool(800)
 
     private val accountName = properties.accountName
 
