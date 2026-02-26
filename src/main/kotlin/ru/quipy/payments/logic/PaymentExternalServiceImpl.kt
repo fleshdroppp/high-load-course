@@ -51,10 +51,12 @@ class PaymentExternalSystemAdapterImpl(
 
         // Вне зависимости от исхода оплаты важно отметить что она была отправлена.
         // Это требуется сделать ВО ВСЕХ СЛУЧАЯХ, поскольку эта информация используется сервисом тестирования.
+        val now = now()
         updateExecutor.execute {
             paymentESService.update(paymentId) {
-                it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
+                it.logSubmission(success = true, transactionId, now, Duration.ofMillis(now - paymentStartedAt))
             }
+            logger.error("DEBUG 59L: ${now() - now}")
         }
 
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
@@ -65,8 +67,9 @@ class PaymentExternalSystemAdapterImpl(
 
             updateExecutor.execute {
                 paymentESService.update(paymentId) {
-                    it.logProcessing(externalSysResponse.result, now(), transactionId, reason = externalSysResponse.message)
+                    it.logProcessing(externalSysResponse.result, now, transactionId, reason = externalSysResponse.message)
                 }
+                logger.error("DEBUG 72L: ${now() - now}")
             }
         } catch (e: Exception) {
             when (e) {
@@ -74,8 +77,9 @@ class PaymentExternalSystemAdapterImpl(
                     logger.error("[$accountName] Payment timeout for txId: $transactionId, payment: $paymentId", e)
                     updateExecutor.execute {
                         paymentESService.update(paymentId) {
-                            it.logProcessing(false, now(), transactionId, reason = "Request timeout.")
+                            it.logProcessing(false, now, transactionId, reason = "Request timeout.")
                         }
+                        logger.error("DEBUG 82L: ${now() - now}")
                     }
                 }
 
@@ -84,13 +88,14 @@ class PaymentExternalSystemAdapterImpl(
 
                     updateExecutor.execute {
                         paymentESService.update(paymentId) {
-                            it.logProcessing(false, now(), transactionId, reason = e.message)
+                            it.logProcessing(false, now, transactionId, reason = e.message)
                         }
+                        logger.error("DEBUG 93L: ${now() - now}")
                     }
                 }
             }
         } finally {
-            logger.info("Payment: $paymentId finished and released lock, time left: ${deadline - now()}")
+            logger.info("Payment: $paymentId finished and released lock, time left: ${deadline - now}")
         }
     }
 

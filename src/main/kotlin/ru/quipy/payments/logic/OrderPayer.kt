@@ -23,27 +23,27 @@ class OrderPayer(
 ) {
     private val paymentExecutor = ThreadPoolExecutor(
         200,
-        1200,
+        200,
         60L, TimeUnit.SECONDS,
-        LinkedBlockingQueue(8000),
+        LinkedBlockingQueue(1),
         NamedThreadFactory("payment-submission-executor"),
         CallerBlockingRejectedExecutionHandler()
     ).asCoroutineDispatcher()
 
     suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-        CoroutineScope(paymentExecutor).launch {
-            val createdEvent = paymentESService.create {
-                it.create(
-                    paymentId,
-                    orderId,
-                    amount
-                )
-            }
-            logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
-            paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
-            logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
+        val b = System.currentTimeMillis()
+        val createdEvent = paymentESService.create {
+            it.create(
+                paymentId,
+                orderId,
+                amount
+            )
         }
+        logger.error("DEBUG: created for ${now() - b}")
+        logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
+        paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+        logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
         return createdAt
     }
 
