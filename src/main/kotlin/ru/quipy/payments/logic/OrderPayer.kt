@@ -33,14 +33,7 @@ class OrderPayer(
     suspend fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
         CoroutineScope(paymentExecutor).launch {
-            val createdEvent = paymentESService.create {
-                it.create(
-                    paymentId,
-                    orderId,
-                    amount
-                )
-            }
-            logger.debug("Payment {} for order {} created. Time left: {}ms", createdEvent.paymentId, orderId, deadline - now())
+            logger.debug("Payment for order {} created. Time left: {}ms", orderId, deadline - now())
             paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
             logger.debug("Order {} payment {} was fully processed, time left: {}ms", orderId, paymentId, deadline - now())
         }
