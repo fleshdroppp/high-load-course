@@ -15,4 +15,4 @@ Content-Type: application/json
 
 ### Stop running test to save time and resources
 # @timeout 120
-POST http://{{runHost}}:1234/test/stop/test-local
+POST http://localhost:1234/test/stop/{{serviceName}}
