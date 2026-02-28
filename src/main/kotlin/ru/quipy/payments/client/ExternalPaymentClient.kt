@@ -2,6 +2,8 @@ package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
 import io.github.resilience4j.ratelimiter.RateLimiter
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import kotlinx.coroutines.future.await
 import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
@@ -25,6 +27,7 @@ class ExternalPaymentClient(
     private val clock: Clock,
     private val outboundRateLimiter: RateLimiter,
     private val outboundParallelRequestLimiter: ParallelRequestsLimiter,
+    private val meterRegistry: MeterRegistry,
 ) {
     init {
         require(retryAmount >= 0) { "Retry amount must be >=0" }
@@ -65,8 +68,18 @@ class ExternalPaymentClient(
             throw ResourceExhaustedRetryableException(1000)
         }
 
-        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
-        return response.body().toExternalSysResponse()
+        val sample = Timer.start(meterRegistry)
+        try {
+            val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
+            return response.body().toExternalSysResponse()
+        } finally {
+            sample.stop(
+                meterRegistry.timer(
+                    "payment.external.request.duration",
+                    "account", properties.accountName
+                )
+            )
+        }
     }
 
     private fun buildRequestUrl(transactionId: String, paymentId: String, amount: String): URI {
