@@ -48,44 +48,17 @@ class PaymentExternalSystemAdapterImpl(
 
         val deadlineInstant = Instant.ofEpochMilli(deadline)
 
-        // Вне зависимости от исхода оплаты важно отметить что она была отправлена.
-        // Это требуется сделать ВО ВСЕХ СЛУЧАЯХ, поскольку эта информация используется сервисом тестирования.
-        withContext(Dispatchers.IO) {
-            paymentESService.update(paymentId) {
-                it.logSubmission(success = true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
-            }
-        }
-
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
-            val externalSysResponse =
-                externalPaymentClient.executePayment(transactionId, paymentId, amount, deadlineInstant)
-
-            withContext(Dispatchers.IO) {
-                paymentESService.update(paymentId) {
-                    it.logProcessing(externalSysResponse.result, now(), transactionId, reason = externalSysResponse.message)
-                }
-            }
+            externalPaymentClient.executePayment(transactionId, paymentId, amount, deadlineInstant)
         } catch (e: Exception) {
             when (e) {
                 is SocketTimeoutException -> {
                     logger.error("[$accountName] Payment timeout for txId: $transactionId, payment: $paymentId", e)
-                    withContext(Dispatchers.IO) {
-                        paymentESService.update(paymentId) {
-                            it.logProcessing(false, now(), transactionId, reason = "Request timeout.")
-                        }
-                    }
                 }
-
                 else -> {
                     logger.error("[$accountName] Payment failed for txId: $transactionId, payment: $paymentId", e)
-
-                    withContext(Dispatchers.IO) {
-                        paymentESService.update(paymentId) {
-                            it.logProcessing(false, now(), transactionId, reason = e.message)
-                        }
-                    }
                 }
             }
         } finally {
