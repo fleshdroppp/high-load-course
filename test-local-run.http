@@ -7,9 +7,9 @@ Content-Type: application/json
 {
   "serviceName": "test-local",
   "token": "test-local",
-  "ratePerSecond": 1000,
-  "testCount": 200000,
-  "processingTimeMillis": 50000,
+  "ratePerSecond": 100,
+  "testCount": 20000,
+  "processingTimeMillis": 1500,
   "onPremises": false
 }
 

@@ -51,7 +51,7 @@ class PaymentExternalSystemAdapterImpl(
         logger.info("[$accountName] Submit: $paymentId , txId: $transactionId")
 
         try {
-            externalPaymentClient.executePayment(transactionId, paymentId, amount, deadlineInstant)
+            externalPaymentClient.executePayment(transactionId, paymentId, amount, deadlineInstant, properties.averageProcessingTime)
         } catch (e: Exception) {
             when (e) {
                 is SocketTimeoutException -> {

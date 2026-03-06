@@ -2,7 +2,16 @@ package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
 import io.github.resilience4j.ratelimiter.RateLimiter
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.quipy.common.utils.ParallelRequestsLimiter
 import ru.quipy.common.utils.logger
 import ru.quipy.common.utils.onlineShopObjectMapper
@@ -14,8 +23,11 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.Executors
+import kotlin.coroutines.cancellation.CancellationException
 
 class ExternalPaymentClient(
     private val properties: PaymentAccountProperties,
@@ -25,48 +37,104 @@ class ExternalPaymentClient(
     private val clock: Clock,
     private val outboundRateLimiter: RateLimiter,
     private val outboundParallelRequestLimiter: ParallelRequestsLimiter,
+    private val meterRegistry: MeterRegistry,
 ) {
     init {
         require(retryAmount >= 0) { "Retry amount must be >=0" }
     }
 
-    private val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
+    private val clientExecutor = Executors.newFixedThreadPool(200)
+
+    private val client = HttpClient.newBuilder()
+        .executor(clientExecutor)
+        .version(HttpClient.Version.HTTP_2).build()
 
     suspend fun executePayment(
         transactionId: UUID,
         paymentId: UUID,
         amount: Int,
         deadline: Instant,
+        avgRequestProcessingTime: Duration,
     ): ExternalSysResponse {
         val request =
             HttpRequest.newBuilder(buildRequestUrl(transactionId.toString(), paymentId.toString(), amount.toString()))
                 .POST(HttpRequest.BodyPublishers.ofString(EMPTY_BODY))
                 .build()
 
-        return executeWithParallelLimitCheck(request, deadline).orDefaultError(transactionId, paymentId)
+        val hedgeDelay = (avgRequestProcessingTime.toMillis() * 0.1).toLong()
+
+        return executeWithParallelLimitCheck(hedgeDelay, request, deadline).orDefaultError(transactionId, paymentId)
     }
 
-    private suspend fun executeWithParallelLimitCheck(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+    private suspend fun executeWithParallelLimitCheck(hedgeDelayMillis: Long, request: HttpRequest, deadline: Instant): ExternalSysResponse? {
         if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
             throw ResourceExhaustedRetryableException(1000)
         }
 
         try {
-            return executeWithRetries(request, deadline)
+            return executeWithRetries(hedgeDelayMillis, request, deadline)
         } finally {
             outboundParallelRequestLimiter.releaseRequest()
         }
     }
 
-    private suspend fun executeWithRetries(request: HttpRequest, deadline: Instant): ExternalSysResponse? {
-        try {
-            RateLimiter.waitForPermission(outboundRateLimiter)
-        } catch (e: Exception) {
-            throw ResourceExhaustedRetryableException(1000)
-        }
+    private suspend fun executeWithRetries(hedgeDelayMillis: Long, request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+        val remainingMillis = Duration.between(clock.instant(), deadline).toMillis()
 
-        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).await()
-        return response.body().toExternalSysResponse()
+        return withTimeoutOrNull(remainingMillis) {
+            coroutineScope {
+                val winner = CompletableDeferred<ExternalSysResponse?>()
+
+                val hedgeJobs = (0..retryAmount).map { attempt ->
+                    launch {
+                        if (attempt > 0) {
+                            delay(hedgeDelayMillis * attempt)
+                        }
+
+                        if (winner.isCompleted) return@launch
+
+                        try {
+                            RateLimiter.waitForPermission(outboundRateLimiter)
+                        } catch (_: Exception) {
+                            logger.warn("Rate limiter interrupted for hedge attempt {}", attempt)
+                            return@launch
+                        }
+
+                        if (winner.isCompleted) return@launch
+
+                        val sample = Timer.start(meterRegistry)
+                        try {
+                            val response = client
+                                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                                .await()
+                            winner.complete(response.body().toExternalSysResponse())
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            logger.warn("Hedge request attempt {} failed: {}", attempt, e.message)
+                        } finally {
+                            sample.stop(
+                                meterRegistry.timer(
+                                    "payment.external.request.duration",
+                                    "account", properties.accountName,
+                                )
+                            )
+                        }
+                    }
+                }
+
+                launch {
+                    hedgeJobs.joinAll()
+                    winner.complete(null)
+                }
+
+                try {
+                    winner.await()
+                } finally {
+                    coroutineContext.cancelChildren()
+                }
+            }
+        }
     }
 
     private fun buildRequestUrl(transactionId: String, paymentId: String, amount: String): URI {

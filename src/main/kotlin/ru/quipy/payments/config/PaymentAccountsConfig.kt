@@ -90,6 +90,7 @@ class PaymentAccountsConfig {
                     clock,
                     outboundPaymentRateLimiter,
                     parallelRequestsLimiter,
+                    meterRegistry,
                 )
 
                 PaymentExternalSystemAdapterImpl(
