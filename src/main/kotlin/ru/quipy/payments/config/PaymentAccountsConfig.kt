@@ -64,15 +64,15 @@ class PaymentAccountsConfig {
 
     @Bean
     fun outboundCircuitBreaker(): CircuitBreaker {
-        val config = CircuitBreakerConfig
-            .custom()
+        val config = CircuitBreakerConfig.custom()
             .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
             .slidingWindowSize(10)
-            .failureRateThreshold(10f)
-            .slowCallRateThreshold(10f)
+            .failureRateThreshold(50f)
+            .slowCallRateThreshold(50f)
             .slowCallDurationThreshold(Duration.ofSeconds(1))
-            .waitDurationInOpenState(Duration.ofMillis(500))
+            .waitDurationInOpenState(Duration.ofSeconds(10))
             .build()
+
         return CircuitBreaker.of("circuit-breaker", config)
     }
 
@@ -104,7 +104,7 @@ class PaymentAccountsConfig {
                     it,
                     paymentProviderHostPort,
                     token,
-                    retryAmount = 3,
+                    retryAmount = 0,
                     clock,
                     outboundPaymentRateLimiter,
                     parallelRequestsLimiter,
