@@ -24,7 +24,7 @@ class HttpConfiguration {
 
     @Bean
     fun rateLimiter(): RateLimiter {
-        return SlidingWindowRateLimiter(4900, Duration.ofSeconds(1))
+        return SlidingWindowRateLimiter(200, Duration.ofSeconds(1))
     }
 
 }

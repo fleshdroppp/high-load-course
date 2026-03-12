@@ -3,6 +3,8 @@ package ru.quipy.payments.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import io.github.resilience4j.ratelimiter.RateLimiter
 import io.github.resilience4j.ratelimiter.RateLimiterConfig
 import io.micrometer.core.instrument.MeterRegistry
@@ -54,17 +56,33 @@ class PaymentAccountsConfig {
         RateLimiter.of(
             "payment-system-outbound",
             RateLimiterConfig.custom()
-                .limitForPeriod(5000)
+                .limitForPeriod(200)
                 .limitRefreshPeriod(Duration.ofSeconds(1))
                 .timeoutDuration(Duration.ofMillis(3000))
                 .build()
         )
 
     @Bean
+    fun outboundCircuitBreaker(): CircuitBreaker {
+        val config = CircuitBreakerConfig
+            .custom()
+            .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+            .slidingWindowSize(10)
+            .failureRateThreshold(10f)
+            .slowCallRateThreshold(10f)
+            .slowCallDurationThreshold(Duration.ofSeconds(1))
+            .waitDurationInOpenState(Duration.ofMillis(500))
+            .build()
+        return CircuitBreaker.of("circuit-breaker", config)
+    }
+
+
+    @Bean
     fun accountAdapters(
         paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
         parallelRequestsLimiter: ParallelRequestsLimiter,
         outboundPaymentRateLimiter: RateLimiter,
+        outboundCircuitBreaker: CircuitBreaker,
         meterRegistry: MeterRegistry
     ): List<PaymentExternalSystemAdapter> {
         val request = HttpRequest.newBuilder()
@@ -91,6 +109,7 @@ class PaymentAccountsConfig {
                     outboundPaymentRateLimiter,
                     parallelRequestsLimiter,
                     meterRegistry,
+                    outboundCircuitBreaker
                 )
 
                 PaymentExternalSystemAdapterImpl(
