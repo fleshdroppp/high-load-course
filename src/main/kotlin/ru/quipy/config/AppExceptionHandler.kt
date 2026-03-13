@@ -1,5 +1,6 @@
 package ru.quipy.config
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException
 import io.github.resilience4j.ratelimiter.RequestNotPermitted
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -33,6 +34,11 @@ class AppExceptionHandler {
     @ExceptionHandler(ExternalResourceTimeoutException::class)
     fun handleExternalResourceTimeoutException(ex: ExternalResourceTimeoutException): ResponseEntity<Unit> {
         return retryAfterResponseEntity(ex.retryAfter)
+    }
+
+    @ExceptionHandler(CallNotPermittedException::class)
+    fun handleCallNotPermittedException(ex: CallNotPermittedException): ResponseEntity<Unit> {
+        return retryAfterResponseEntity(Instant.now().plusSeconds(15))
     }
 
     private fun retryAfterResponseEntity(retryAfter: Instant): ResponseEntity<Unit> {

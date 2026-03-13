@@ -1,6 +1,8 @@
 package ru.quipy.payments.client
 
 import com.fasterxml.jackson.core.type.TypeReference
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.kotlin.circuitbreaker.decorateSuspendFunction
 import io.github.resilience4j.ratelimiter.RateLimiter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
@@ -38,6 +40,7 @@ class ExternalPaymentClient(
     private val outboundRateLimiter: RateLimiter,
     private val outboundParallelRequestLimiter: ParallelRequestsLimiter,
     private val meterRegistry: MeterRegistry,
+    private val outboundCircuitBreaker: CircuitBreaker,
 ) {
     init {
         require(retryAmount >= 0) { "Retry amount must be >=0" }
@@ -47,7 +50,8 @@ class ExternalPaymentClient(
 
     private val client = HttpClient.newBuilder()
         .executor(clientExecutor)
-        .version(HttpClient.Version.HTTP_2).build()
+        .version(HttpClient.Version.HTTP_2)
+        .build()
 
     suspend fun executePayment(
         transactionId: UUID,
@@ -56,17 +60,34 @@ class ExternalPaymentClient(
         deadline: Instant,
         avgRequestProcessingTime: Duration,
     ): ExternalSysResponse {
-        val request =
-            HttpRequest.newBuilder(buildRequestUrl(transactionId.toString(), paymentId.toString(), amount.toString()))
-                .POST(HttpRequest.BodyPublishers.ofString(EMPTY_BODY))
-                .build()
+        return try {
+            outboundCircuitBreaker.decorateSuspendFunction {
+                val request =
+                    HttpRequest.newBuilder(
+                        buildRequestUrl(
+                            transactionId.toString(),
+                            paymentId.toString(),
+                            amount.toString()
+                        )
+                    )
+                        .timeout(avgRequestProcessingTime.multipliedBy(3))
+                        .POST(HttpRequest.BodyPublishers.ofString(EMPTY_BODY))
+                        .build()
 
-        val hedgeDelay = (avgRequestProcessingTime.toMillis() * 0.1).toLong()
+                val hedgeDelay = (avgRequestProcessingTime.toMillis() * 0.1).toLong()
 
-        return executeWithParallelLimitCheck(hedgeDelay, request, deadline).orDefaultError(transactionId, paymentId)
+                executeWithParallelLimitCheck(hedgeDelay, request, deadline).orDefaultError(transactionId, paymentId)
+            }.invoke()
+        } catch (e: Exception) {
+            throw ResourceExhaustedRetryableException(15000)
+        }
     }
 
-    private suspend fun executeWithParallelLimitCheck(hedgeDelayMillis: Long, request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+    private suspend fun executeWithParallelLimitCheck(
+        hedgeDelayMillis: Long,
+        request: HttpRequest,
+        deadline: Instant
+    ): ExternalSysResponse? {
         if (!outboundParallelRequestLimiter.tryToAddRequest(10)) {
             throw ResourceExhaustedRetryableException(1000)
         }
@@ -78,7 +99,11 @@ class ExternalPaymentClient(
         }
     }
 
-    private suspend fun executeWithRetries(hedgeDelayMillis: Long, request: HttpRequest, deadline: Instant): ExternalSysResponse? {
+    private suspend fun executeWithRetries(
+        hedgeDelayMillis: Long,
+        request: HttpRequest,
+        deadline: Instant
+    ): ExternalSysResponse? {
         val remainingMillis = Duration.between(clock.instant(), deadline).toMillis()
 
         return withTimeoutOrNull(remainingMillis) {
@@ -112,6 +137,7 @@ class ExternalPaymentClient(
                             throw e
                         } catch (e: Exception) {
                             logger.warn("Hedge request attempt {} failed: {}", attempt, e.message)
+                            throw e
                         } finally {
                             sample.stop(
                                 meterRegistry.timer(
